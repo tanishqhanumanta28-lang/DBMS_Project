@@ -1,0 +1,129 @@
+-- School Transport DBMS — schema aligned to the website's 8 displayed entities
+-- MySQL 8.0+
+
+CREATE DATABASE IF NOT EXISTS SchoolTransportDB;
+
+USE SchoolTransportDB;
+
+CREATE TABLE Route (
+    RouteID INT AUTO_INCREMENT PRIMARY KEY,
+    RouteName VARCHAR(100) NOT NULL,
+    StartPoint VARCHAR(150) NOT NULL,
+    EndPoint VARCHAR(150) NOT NULL,
+    Description VARCHAR(255),
+    Status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active'
+);
+
+CREATE TABLE Stop (
+    StopID INT AUTO_INCREMENT PRIMARY KEY,
+    RouteID INT NOT NULL,
+    StopName VARCHAR(120) NOT NULL,
+    Address VARCHAR(255),
+    StopSequence INT NOT NULL,
+    ScheduledPickup TIME,
+    ScheduledDrop TIME,
+    Latitude DECIMAL(10,7),
+    Longitude DECIMAL(10,7),
+    FOREIGN KEY (RouteID) REFERENCES Route(RouteID)
+        ON UPDATE CASCADE ON DELETE CASCADE,
+    UNIQUE (RouteID, StopSequence)
+);
+
+CREATE TABLE Driver_Attendant (
+    StaffID INT AUTO_INCREMENT PRIMARY KEY,
+    FullName VARCHAR(120) NOT NULL,
+    Role ENUM('Driver','Attendant') NOT NULL,
+    Phone VARCHAR(20) NOT NULL,
+    LicenceNumber VARCHAR(50),
+    Status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+    UNIQUE (Phone),
+    UNIQUE (LicenceNumber)
+);
+
+CREATE TABLE Bus (
+    BusID INT AUTO_INCREMENT PRIMARY KEY,
+    RegistrationNumber VARCHAR(20) NOT NULL UNIQUE,
+    RouteID INT,
+    StaffID INT,
+    Capacity INT NOT NULL,
+    Model VARCHAR(80),
+    Status ENUM('Active','Inactive','Maintenance') NOT NULL DEFAULT 'Active',
+    FOREIGN KEY (RouteID) REFERENCES Route(RouteID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    FOREIGN KEY (StaffID) REFERENCES Driver_Attendant(StaffID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    CHECK (Capacity > 0)
+);
+
+CREATE TABLE Student (
+    StudentID INT AUTO_INCREMENT PRIMARY KEY,
+    AdmissionNumber VARCHAR(30) NOT NULL UNIQUE,
+    FullName VARCHAR(120) NOT NULL,
+    ClassName VARCHAR(30),
+    SectionName VARCHAR(10),
+    GuardianName VARCHAR(120),
+    GuardianPhone VARCHAR(20),
+    RouteID INT,
+    PickupStopID INT,
+    DropStopID INT,
+    Status ENUM('Active','Inactive') NOT NULL DEFAULT 'Active',
+    FOREIGN KEY (RouteID) REFERENCES Route(RouteID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    FOREIGN KEY (PickupStopID) REFERENCES Stop(StopID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    FOREIGN KEY (DropStopID) REFERENCES Stop(StopID)
+        ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+CREATE TABLE Pickup_Log (
+    PickupLogID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    StudentID INT NOT NULL,
+    BusID INT,
+    ServiceDate DATE NOT NULL,
+    TripType ENUM('Morning Pickup','Afternoon Drop') NOT NULL,
+    ActualTime DATETIME,
+    Status ENUM('Picked Up','Dropped Off','Absent','Missed') NOT NULL,
+    Notes VARCHAR(255),
+    FOREIGN KEY (StudentID) REFERENCES Student(StudentID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    FOREIGN KEY (BusID) REFERENCES Bus(BusID)
+        ON UPDATE CASCADE ON DELETE SET NULL,
+    UNIQUE (StudentID, ServiceDate, TripType)
+);
+
+CREATE TABLE Fee_Payment (
+    PaymentID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    StudentID INT NOT NULL,
+    FeePeriod VARCHAR(30) NOT NULL,
+    AmountDue DECIMAL(10,2) NOT NULL,
+    AmountPaid DECIMAL(10,2) NOT NULL DEFAULT 0,
+    DueDate DATE,
+    PaymentDate DATE,
+    PaymentMethod ENUM('Cash','UPI','Card','Bank Transfer','Other'),
+    Status ENUM('Pending','Partially Paid','Paid','Overdue') NOT NULL DEFAULT 'Pending',
+    FOREIGN KEY (StudentID) REFERENCES Student(StudentID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    UNIQUE (StudentID, FeePeriod),
+    CHECK (AmountDue >= 0),
+    CHECK (AmountPaid >= 0 AND AmountPaid <= AmountDue)
+);
+
+CREATE TABLE Maintenance (
+    MaintenanceID BIGINT AUTO_INCREMENT PRIMARY KEY,
+    BusID INT NOT NULL,
+    MaintenanceDate DATE NOT NULL,
+    MaintenanceType VARCHAR(100) NOT NULL,
+    Description VARCHAR(255),
+    Cost DECIMAL(10,2) NOT NULL DEFAULT 0,
+    NextServiceDate DATE,
+    Status ENUM('Scheduled','In Progress','Completed') NOT NULL DEFAULT 'Scheduled',
+    FOREIGN KEY (BusID) REFERENCES Bus(BusID)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CHECK (Cost >= 0)
+);
+
+CREATE INDEX idx_student_name ON Student(FullName);
+
+CREATE INDEX idx_pickup_date_status ON Pickup_Log(ServiceDate, Status);
+
+CREATE INDEX idx_payment_status ON Fee_Payment(Status);

@@ -1,0 +1,1681 @@
+<title>School Transport DBMS Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: fixed sidebar + sticky topbar, one page visible at a time. On narrow screens the sidebar becomes a scrolling tab strip.
+   Palette: deep navy ground (cool, slightly blue neutrals), school-bus yellow as the single accent, green / orange / red / blue only for state. */
+:root {
+  --bg: #0b1017; --surface: #121a25; --surface-2: #19232f; --line: #243145; --line-strong: #34465f;
+  --fg: #e8edf5; --fg-2: #b4c0d1; --muted: #8190a6;
+  --accent: #f5b301; --accent-text: #f5b301; --on-accent: #171102; --accent-soft: rgba(245,179,1,.13);
+  --good: #3bd196; --good-soft: rgba(59,209,150,.14);
+  --warn: #f59e42; --warn-soft: rgba(245,158,66,.15);
+  --bad: #f4707a; --bad-soft: rgba(244,112,122,.15);
+  --info: #5db7f2; --info-soft: rgba(93,183,242,.15);
+  --muted-soft: rgba(129,144,166,.16);
+  --shadow: 0 18px 50px rgba(0,0,0,.45);
+  --term-bg: #080d14; --term-fg: #cfd8e6; --term-line: #1c2736;
+  --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --r: 12px; --r-sm: 8px; --sidebar: 248px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f2f5f9; --surface: #ffffff; --surface-2: #edf1f7; --line: #d9e0ec; --line-strong: #c3cddd;
+    --fg: #121a26; --fg-2: #3a495f; --muted: #5a6a82;
+    --accent: #f5b301; --accent-text: #8a5a00; --on-accent: #171102; --accent-soft: rgba(245,179,1,.20);
+    --good: #0b7a52; --good-soft: rgba(11,122,82,.11);
+    --warn: #a35500; --warn-soft: rgba(163,85,0,.12);
+    --bad: #c0303b; --bad-soft: rgba(192,48,59,.10);
+    --info: #1767a8; --info-soft: rgba(23,103,168,.10);
+    --muted-soft: rgba(90,106,130,.12);
+    --shadow: 0 18px 50px rgba(20,35,60,.16);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f2f5f9; --surface: #ffffff; --surface-2: #edf1f7; --line: #d9e0ec; --line-strong: #c3cddd;
+  --fg: #121a26; --fg-2: #3a495f; --muted: #5a6a82;
+  --accent: #f5b301; --accent-text: #8a5a00; --on-accent: #171102; --accent-soft: rgba(245,179,1,.20);
+  --good: #0b7a52; --good-soft: rgba(11,122,82,.11);
+  --warn: #a35500; --warn-soft: rgba(163,85,0,.12);
+  --bad: #c0303b; --bad-soft: rgba(192,48,59,.10);
+  --info: #1767a8; --info-soft: rgba(23,103,168,.10);
+  --muted-soft: rgba(90,106,130,.12);
+  --shadow: 0 18px 50px rgba(20,35,60,.16);
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+[hidden] { display: none !important; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ic { flex: none; vertical-align: -3px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.sub { font-size: 12px; color: var(--muted); }
+.num { text-align: right; }
+.good-text { color: var(--good); } .bad-text { color: var(--bad); } .info-text { color: var(--info); } .accent-text { color: var(--accent-text); }
+
+/* ---- shell ---- */
+.shell { display: flex; min-height: 100vh; }
+.sidebar { width: var(--sidebar); flex: none; position: fixed; inset: 0 auto 0 0; z-index: 40; display: flex; flex-direction: column; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
+.brand { display: flex; align-items: center; gap: 12px; padding: 22px 20px 16px; }
+.brand-mark { width: 40px; height: 40px; border-radius: 10px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+.brand-title { font-family: var(--font-display); font-weight: 700; font-size: 16px; line-height: 1.15; }
+.brand-sub { font-size: 11px; color: var(--muted); }
+.review-tag { margin: 0 20px 6px; padding: 5px 10px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--fg-2); text-align: center; }
+.nav-group { padding: 14px 12px 4px; display: flex; flex-direction: column; gap: 2px; }
+.nav-label { padding: 0 10px 6px; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; color: var(--fg-2); font-size: 13px; font-weight: 500; text-align: left; }
+.nav-item:hover { background: var(--surface-2); color: var(--fg); }
+.nav-item.active { background: var(--accent-soft); color: var(--fg); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.nav-item.active .ic { color: var(--accent-text); }
+.nav-badge { margin-left: auto; min-width: 22px; padding: 0 7px; border-radius: 99px; background: var(--muted-soft); color: var(--fg-2); font-size: 11px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.nav-badge.warn { background: var(--warn-soft); color: var(--warn); }
+.side-foot { margin-top: auto; padding: 16px 20px 20px; border-top: 1px solid var(--line); display: grid; gap: 10px; }
+.db-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); }
+.db-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); animation: pulse 2.4s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.main { flex: 1; min-width: 0; margin-left: var(--sidebar); }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; display: flex; align-items: center; gap: 14px; height: 60px; padding-inline: clamp(16px, 3vw, 32px); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+.topbar-title { font-family: var(--font-display); font-weight: 700; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.topbar-meta { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.page { display: none; padding: 28px clamp(16px, 3vw, 32px) 56px; max-width: 1280px; animation: rise .3s ease; }
+.page.active { display: block; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .page { animation: none; } .db-dot { animation: none; } .toast { animation: none; } }
+
+/* ---- controls ---- */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--surface-2); color: var(--fg); font-size: 13px; font-weight: 500; line-height: 1.2; transition: border-color .15s, background .15s; }
+.btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn-primary:hover { border-color: var(--accent); filter: brightness(1.07); }
+.btn-good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); background: var(--good-soft); }
+.btn-danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); background: var(--bad-soft); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-block { width: 100%; padding: 12px; font-size: 14px; }
+.input { width: 100%; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--bg); color: var(--fg); font-size: 14px; min-width: 0; }
+.input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.input-sm { width: 124px; padding: 5px 8px; font-size: 12px; }
+.label { display: block; margin-bottom: 5px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.field { min-width: 0; }
+.hint { margin-top: 4px; font-size: 11px; color: var(--muted); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 14px; }
+.stack { display: grid; gap: 14px; }
+.row-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab { padding: 6px 12px; border: 1px solid var(--line); border-radius: 99px; background: none; color: var(--fg-2); font-size: 12px; font-weight: 500; }
+.tab:hover { border-color: var(--line-strong); color: var(--fg); }
+.tab.active { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 50%, transparent); color: var(--fg); }
+
+/* ---- structure ---- */
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.page-title { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.15; text-wrap: balance; }
+.page-sub { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 20px; align-items: start; }
+.grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 14px; margin-bottom: 22px; }
+.grid-2.wide { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); }
+@media (max-width: 1100px) { .grid-2.wide { grid-template-columns: minmax(0, 1fr); } }
+.gap { margin-top: 20px; }
+.card { min-width: 0; padding: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.card-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.card-icon { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px; }
+.card-icon.good { background: var(--good-soft); color: var(--good); } .card-icon.bad { background: var(--bad-soft); color: var(--bad); }
+.card-icon.info { background: var(--info-soft); color: var(--info); } .card-icon.warn { background: var(--warn-soft); color: var(--warn); }
+.card-icon.accent { background: var(--accent-soft); color: var(--accent-text); }
+.card-title { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.card-sub { font-size: 12px; color: var(--muted); }
+.banner { display: flex; align-items: center; gap: 18px; padding: 22px 24px; margin-bottom: 22px; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); }
+.banner-icon { width: 52px; height: 52px; flex: none; display: grid; place-items: center; border-radius: 14px; background: var(--accent); color: var(--on-accent); }
+.banner-title { font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 1.2; text-wrap: balance; }
+.banner-sub { margin-top: 4px; font-size: 13px; color: var(--muted); }
+.stat { padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.stat-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.stat-value { margin: 6px 0 2px; font-family: var(--font-display); font-size: 30px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat.good .stat-value { color: var(--good); } .stat.bad .stat-value { color: var(--bad); } .stat.info .stat-value { color: var(--info); } .stat.accent .stat-value { color: var(--accent-text); }
+.stat-sub { font-size: 12px; color: var(--muted); }
+.quick-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 14px; }
+.quick { padding: 14px; text-align: center; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.quick-num { font-family: var(--font-display); font-size: 26px; font-weight: 700; }
+.quick-label { font-size: 12px; color: var(--muted); }
+
+/* ---- tables ---- */
+.table-wrap { overflow-x: auto; border-radius: var(--r-sm); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { padding: 10px 12px; text-align: left; white-space: nowrap; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line-strong); background: var(--surface-2); }
+th.num { text-align: right; }
+td { padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--surface-2); }
+td.actions { white-space: nowrap; text-align: right; }
+td.actions .btn + .btn { margin-left: 6px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; letter-spacing: .02em; white-space: nowrap; }
+.badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.good { background: var(--good-soft); color: var(--good); } .badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.bad { background: var(--bad-soft); color: var(--bad); } .badge.info { background: var(--info-soft); color: var(--info); }
+.badge.muted { background: var(--muted-soft); color: var(--fg-2); }
+.chip { padding: 3px 9px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; font-weight: 500; }
+.empty { padding: 36px 16px; text-align: center; }
+.empty-title { font-weight: 600; color: var(--fg-2); }
+.empty-sub { margin-top: 4px; font-size: 12px; color: var(--muted); }
+.meter { height: 6px; margin-top: 8px; overflow: hidden; border-radius: 99px; background: var(--muted-soft); }
+.meter-fill { height: 100%; border-radius: 99px; transition: width .5s ease; }
+.meter-fill.good { background: var(--good); } .meter-fill.warn { background: var(--warn); } .meter-fill.bad { background: var(--bad); }
+.ledger-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.ledger-row span { color: var(--fg-2); min-width: 0; }
+.ledger-row b { text-align: right; font-weight: 600; }
+.ledger-row.total { border-top: 1px solid var(--line-strong); border-bottom: 0; margin-top: 4px; padding-top: 12px; }
+.ledger-row.total b { font-size: 17px; }
+.ledger { padding: 4px 16px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); }
+.occ + .occ { margin-top: 18px; }
+.occ-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+.occ-name { font-weight: 600; } .occ-num { color: var(--muted); font-variant-numeric: tabular-nums; }
+.occ-sub { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
+/* ---- terminal ---- */
+.terminal { height: 230px; overflow-y: auto; padding: 14px; background: var(--term-bg); border: 1px solid var(--term-line); border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 11.5px; color: var(--term-fg); }
+.log-line { margin-bottom: 5px; line-height: 1.55; overflow-wrap: anywhere; }
+.log-time { color: #6f7f96; }
+.log-ok { color: #3bd196; } .log-err { color: #f4707a; } .log-warn { color: #f5a54a; } .log-sql { color: #f5c451; } .log-trg { color: #5db7f2; } .log-info { color: #9fb0c7; }
+
+/* ---- route search ---- */
+.route-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.route-card + .route-card { margin-top: 14px; }
+.route-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 20px; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.route-name { font-family: var(--font-display); font-size: 17px; font-weight: 700; margin-right: auto; }
+.route-line { display: flex; align-items: center; gap: 18px; padding: 18px 20px 6px; }
+.route-end { min-width: 0; } .route-end.right { text-align: right; }
+.route-time { font-size: 22px; font-weight: 500; }
+.route-stop { font-size: 12px; color: var(--muted); }
+.route-span { flex: 1; min-width: 40px; text-align: center; font-size: 12px; color: var(--accent-text); font-weight: 600; }
+.route-span i { display: block; height: 2px; margin-top: 4px; background: var(--accent); border-radius: 2px; }
+.stop-trail { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 20px 16px; margin: 0; }
+.stop-trail li { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 99px; font-size: 12px; color: var(--fg-2); }
+.stop-trail li span { color: var(--muted); } .stop-trail li em { font-style: normal; color: var(--muted); }
+.stop-trail li.hit { border-color: var(--accent); color: var(--fg); background: var(--accent-soft); }
+.route-foot { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid var(--line); }
+.route-seats { flex: 1; min-width: min(100%, 260px); }
+.route-seats-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; }
+.route-crew { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+/* ---- registration card (modal) ---- */
+.reg-card { border: 1px solid var(--line-strong); border-radius: var(--r); overflow: hidden; background: var(--surface-2); }
+.reg-card-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px dashed var(--line-strong); }
+.reg-code { font-size: 22px; font-weight: 500; color: var(--accent-text); letter-spacing: .04em; }
+.reg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 18px; padding: 18px; }
+.card-field-l { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.card-field-v { font-weight: 600; overflow-wrap: anywhere; }
+
+/* ---- tracker ---- */
+.rider { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg); }
+.rider + .rider { margin-top: 8px; }
+.rider-seq { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); font-size: 12px; font-weight: 500; }
+.rider-info { flex: 1; min-width: 180px; }
+.rider-name { font-weight: 600; } .rider-detail { font-size: 12px; color: var(--muted); }
+.rider-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+/* ---- charts ---- */
+.bar-row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr auto; gap: 12px; align-items: center; padding: 8px 0; font-size: 13px; }
+.bar-track { height: 14px; border-radius: 4px; background: var(--muted-soft); overflow: hidden; }
+.bar-billed { height: 100%; background: var(--warn-soft); border-right: 2px solid var(--warn); }
+.bar-paid { height: 100%; background: var(--good); }
+.bar-solid { height: 100%; } .bar-solid.good { background: var(--good); } .bar-solid.muted { background: var(--muted); }
+.bar-val { font-size: 12px; color: var(--fg-2); text-align: right; white-space: nowrap; }
+.bar-label { overflow-wrap: anywhere; }
+.legend { display: flex; gap: 18px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.sw { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; }
+.sw.paid { background: var(--good); } .sw.billed { background: var(--warn-soft); border: 1px solid var(--warn); }
+@media (max-width: 520px) { .bar-row { grid-template-columns: 1fr; gap: 4px; } .bar-val { text-align: left; } }
+pre.sql { margin: 0 0 14px; padding: 14px 16px; overflow-x: auto; background: var(--term-bg); color: #f5c451; border: 1px solid var(--term-line); border-radius: var(--r-sm); font-family: var(--font-mono); font-size: 12px; line-height: 1.6; }
+.rep-meta { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; justify-content: space-between; margin: 14px 0; }
+.rep-count { font-size: 12px; color: var(--muted); }
+
+/* ---- toast + modal ---- */
+.toasts { position: fixed; z-index: 90; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; width: min(380px, calc(100vw - 32px)); }
+.toast { padding: 12px 16px; border: 1px solid var(--line-strong); border-left-width: 4px; border-radius: var(--r-sm); background: var(--surface-2); box-shadow: var(--shadow); animation: rise .25s ease; transition: opacity .35s; }
+.toast.out { opacity: 0; }
+.toast.success { border-left-color: var(--good); } .toast.error { border-left-color: var(--bad); } .toast.warn { border-left-color: var(--warn); } .toast.info { border-left-color: var(--info); }
+.toast-title { font-weight: 600; font-size: 13px; } .toast-msg { margin-top: 2px; font-size: 12px; color: var(--fg-2); overflow-wrap: anywhere; }
+.modal-bg { position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(4,8,14,.72); backdrop-filter: blur(4px); }
+.modal-bg.open { display: flex; }
+.modal { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; padding: 24px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: var(--shadow); }
+.modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; }
+.modal-title { font-family: var(--font-display); font-size: 19px; font-weight: 700; }
+.modal-x { padding: 4px; border: 0; background: none; color: var(--muted); }
+.modal-x:hover { color: var(--fg); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.form-error { margin-top: 14px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); border-radius: var(--r-sm); background: var(--bad-soft); color: var(--bad); font-size: 12.5px; overflow-wrap: anywhere; }
+.form-error div { margin-top: 3px; color: var(--fg-2); }
+
+/* ---- narrow screens: sidebar becomes a scrolling tab strip ---- */
+@media (max-width: 900px) {
+  .sidebar { position: sticky; top: 0; width: auto; inset: auto; flex-direction: row; align-items: center; gap: 4px; padding: 8px 12px; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--line); }
+  .shell { flex-direction: column; }
+  .brand { padding: 0 8px 0 0; } .brand-title { display: none; } .brand-sub, .review-tag, .nav-label, .side-foot { display: none; }
+  .sidebar nav { display: flex; gap: 4px; flex-wrap: nowrap; }
+  .nav-group { flex-direction: row; flex-wrap: nowrap; padding: 0; gap: 4px; }
+  .nav-item { width: auto; white-space: nowrap; }
+  .main { margin-left: 0; }
+  .topbar { position: static; } .topbar-meta { display: none; }
+  .banner { flex-direction: column; align-items: flex-start; }
+}
+</style>
+
+<div class="shell">
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="brand">
+      <div class="brand-mark" id="brand-mark"></div>
+      <div><div class="brand-title">School Transport</div><div class="brand-sub">DBMS · Project 21</div></div>
+    </div>
+    <div class="review-tag">REVIEW 3 · FINAL DEMO</div>
+    <nav>
+      <div class="nav-group"><div class="nav-label">Overview</div>
+        <button class="nav-item" data-page="dashboard" onclick="navigate('dashboard')"><span data-ic="gauge"></span>Dashboard</button></div>
+      <div class="nav-group"><div class="nav-label">Operations</div>
+        <button class="nav-item" data-page="search" onclick="navigate('search')"><span data-ic="search"></span>Route Search</button>
+        <button class="nav-item" data-page="register" onclick="navigate('register')"><span data-ic="userplus"></span>Register Student</button>
+        <button class="nav-item" data-page="registrations" onclick="navigate('registrations')"><span data-ic="list"></span>Registrations<span class="nav-badge" id="nb-regs">0</span></button></div>
+      <div class="nav-group"><div class="nav-label">Management</div>
+        <button class="nav-item" data-page="tracker" onclick="navigate('tracker')"><span data-ic="clip"></span>Pickup Tracker<span class="nav-badge warn" id="nb-absent">0</span></button>
+        <button class="nav-item" data-page="deregister" onclick="navigate('deregister')"><span data-ic="ban"></span>Deactivate</button>
+        <button class="nav-item" data-page="fees" onclick="navigate('fees')"><span data-ic="wallet"></span>Fees &amp; Payments</button></div>
+      <div class="nav-group"><div class="nav-label">Data &amp; Reports</div>
+        <button class="nav-item" data-page="crud" onclick="navigate('crud')"><span data-ic="db"></span>CRUD Manager</button>
+        <button class="nav-item" data-page="reports" onclick="navigate('reports')"><span data-ic="chart"></span>Analytics Report</button></div>
+    </nav>
+    <div class="side-foot">
+      <div class="db-status"><span class="db-dot"></span>In-browser database · resets on reload</div>
+      <button class="btn btn-sm" onclick="resetData()"><span data-ic="undo"></span>Reset sample data</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Dashboard Overview</div>
+      <div class="topbar-right">
+        <span class="topbar-meta">DBMS Course · Project 21</span>
+        <button class="btn btn-primary btn-sm" onclick="navigate('register')"><span data-ic="plus"></span>New registration</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section class="page" id="page-dashboard">
+      <div class="banner">
+        <div class="banner-icon" data-ic-big="bus"></div>
+        <div><div class="banner-title">School Transport Route &amp; Student Pickup Management</div>
+          <div class="banner-sub">Route search · student registration · pickup tracking · fee ledger · maintenance · SQL reports</div></div>
+      </div>
+      <div class="grid-stats" id="dash-kpis"></div>
+      <div class="grid-2 wide">
+        <div class="card"><div data-head="list|good|Recent registrations|Latest transport assignments"></div><div id="dash-recent"></div></div>
+        <div class="card"><div data-head="bus|accent|Bus seat occupancy|Active students against bus capacity"></div><div id="dash-occupancy"></div></div>
+      </div>
+      <div class="quick-row gap" id="dash-quick"></div>
+      <div class="card gap"><div data-head="term|info|System transaction log|Real statements, trigger activity and constraint errors"></div><div class="terminal" id="dash-term" role="log" aria-label="Transaction log" tabindex="0"></div></div>
+    </section>
+
+    <!-- ROUTE SEARCH -->
+    <section class="page" id="page-search">
+      <div class="page-head"><div><div class="page-title">Route Search</div><div class="page-sub">Find routes by stop and shift, with live seat availability</div></div></div>
+      <div class="card">
+        <div class="form-grid">
+          <div class="field"><label class="label" for="s-from">From stop</label><select class="input" id="s-from" onchange="searchRoutes()"></select></div>
+          <div class="field"><label class="label" for="s-to">To stop</label><select class="input" id="s-to" onchange="searchRoutes()"></select></div>
+          <div class="field"><label class="label" for="s-shift">Shift</label><select class="input" id="s-shift" onchange="searchRoutes()"><option value="ALL">All shifts</option><option value="MORNING">Morning</option><option value="AFTERNOON">Afternoon</option></select></div>
+          <div class="field" style="align-self:end"><button class="btn btn-block" onclick="resetSearch()"><span data-ic="undo"></span>Reset</button></div>
+        </div>
+      </div>
+      <div class="gap" id="search-results"></div>
+    </section>
+
+    <!-- REGISTER -->
+    <section class="page" id="page-register">
+      <div class="page-head"><div><div class="page-title">Register Student</div><div class="page-sub">Student, route, stop and fee plan are saved together in one transaction</div></div></div>
+      <div class="grid-2">
+        <div class="card">
+          <div data-head="userplus|accent|Student and route|"></div>
+          <div class="stack">
+            <div class="field"><label class="label" for="r-student">Student</label><select class="input" id="r-student" onchange="newStudentToggle()"></select></div>
+            <div id="r-new" class="form-grid" hidden>
+              <div class="field"><label class="label" for="r-name">Name</label><input class="input" id="r-name" placeholder="Aarav Sharma"></div>
+              <div class="field"><label class="label" for="r-guardian">Guardian</label><input class="input" id="r-guardian" placeholder="Rajesh Sharma"></div>
+              <div class="field"><label class="label" for="r-class">Class</label><input class="input" id="r-class" placeholder="8"></div>
+              <div class="field"><label class="label" for="r-section">Section</label><input class="input" id="r-section" placeholder="A"></div>
+            </div>
+            <div class="form-grid">
+              <div class="field"><label class="label" for="r-route">Route</label><select class="input" id="r-route" onchange="fillStops();regPreview()"></select></div>
+              <div class="field"><label class="label" for="r-stop">Pickup stop</label><select class="input" id="r-stop"></select><div class="hint">Only stops on the chosen route are listed (composite foreign key).</div></div>
+              <div class="field"><label class="label" for="r-plan">Fee plan</label><select class="input" id="r-plan" onchange="regPreview()"></select></div>
+              <div class="field"><label class="label" for="r-start">Start date</label><input class="input" id="r-start" type="date"></div>
+            </div>
+            <div class="field"><label class="label" for="r-pay">Payment with registration (optional, ₹)</label><input class="input" id="r-pay" type="number" step="0.01" placeholder="e.g. 3250" oninput="regPreview()"></div>
+            <button class="btn btn-primary btn-block" onclick="submitRegistration()"><span data-ic="shield"></span>Confirm registration</button>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="card"><div data-head="wallet|warn|Fee preview|"></div><div class="ledger" id="r-fee"></div></div>
+          <div class="card"><div data-head="bus|good|Seat availability|The capacity trigger blocks registrations once a bus is full"></div><div id="r-seats"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REGISTRATIONS -->
+    <section class="page" id="page-registrations">
+      <div class="page-head"><div><div class="page-title">All Registrations</div><div class="page-sub">Every assignment on record, with fees and status</div></div><button class="btn btn-primary" onclick="navigate('register')"><span data-ic="plus"></span>New registration</button></div>
+      <div class="card">
+        <div class="row-actions" style="margin-bottom:16px">
+          <div class="field"><label class="label" for="f-status">Status</label><select class="input" id="f-status" onchange="ui.regFilter=this.value;renderRegistrations()"><option value="ALL">All</option><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option></select></div>
+          <div class="field" style="flex:1;min-width:200px"><label class="label" for="f-query">Search</label><input class="input" id="f-query" placeholder="Student, route or stop" oninput="ui.regQuery=this.value;renderRegistrations()"></div>
+        </div>
+        <div id="reg-table"></div>
+      </div>
+    </section>
+
+    <!-- TRACKER -->
+    <section class="page" id="page-tracker">
+      <div class="page-head"><div><div class="page-title">Pickup Tracker</div><div class="page-sub">Log pickups and drops per trip. A trigger validates every event.</div></div>
+        <div class="row-actions"><button class="btn btn-good" onclick="runTrip('PICKUP')"><span data-ic="play"></span>Run morning trip</button><button class="btn" onclick="runTrip('DROP')"><span data-ic="check"></span>Log school drops</button></div></div>
+      <div class="card" style="margin-bottom:20px"><div class="form-grid">
+        <div class="field"><label class="label" for="t-route">Route</label><select class="input" id="t-route" onchange="trackerChange()"></select></div>
+        <div class="field"><label class="label" for="t-date">Trip date</label><input class="input" id="t-date" type="date" onchange="trackerChange()"></div>
+      </div></div>
+      <div class="grid-2">
+        <div class="card"><div data-head="users|accent|Riders on this route|Ordered by pickup stop"></div><div id="t-list"></div></div>
+        <div class="stack">
+          <div class="card"><div data-head="chart|info|Trip summary|"></div><div class="ledger" id="t-stats"></div></div>
+          <div class="card"><div data-head="term|good|Trigger activity|trg_validate_pickup_log"></div>
+            <div class="terminal" id="t-term" role="log" aria-label="Trigger activity" tabindex="0"></div>
+            <div class="row-actions" style="margin-top:14px"><button class="btn btn-sm btn-danger" onclick="triggerDemo('drop')">Try a drop with no pickup</button><button class="btn btn-sm btn-danger" onclick="triggerDemo('inactive')">Try an inactive registration</button></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEACTIVATE -->
+    <section class="page" id="page-deregister">
+      <div class="page-head"><div><div class="page-title">Deactivate Registration</div><div class="page-sub">Marks the registration INACTIVE and frees the seat. History and payments stay on record.</div></div></div>
+      <div class="grid-2">
+        <div class="stack">
+          <div class="card"><div data-head="ban|bad|Choose a registration|"></div>
+            <div class="stack"><div class="field"><label class="label" for="d-reg">Active registration</label><select class="input" id="d-reg" onchange="ui.deReg=+this.value;renderDeregister()"></select></div>
+            <div class="ledger" id="d-preview"></div>
+            <button class="btn btn-danger btn-block" id="d-btn" onclick="deregister()"><span data-ic="ban"></span>Deactivate registration</button></div></div>
+          <div class="card"><div data-head="list|info|Inactive registrations|Can be reactivated from All Registrations"></div><div id="d-inactive"></div></div>
+        </div>
+        <div class="card"><div data-head="term|info|Transaction log|BEGIN, UPDATE, COMMIT"></div><div class="terminal" id="d-term" role="log" aria-label="Transaction log" tabindex="0"></div></div>
+      </div>
+    </section>
+
+    <!-- FEES -->
+    <section class="page" id="page-fees">
+      <div class="page-head"><div><div class="page-title">Fees &amp; Payments</div><div class="page-sub">Plan amount minus receipts gives each balance (the vw_FeeDues view)</div></div></div>
+      <div class="grid-2">
+        <div class="card"><div data-head="wallet|accent|Ledger and new payment|"></div>
+          <div class="stack">
+            <div class="field"><label class="label" for="fee-reg">Registration</label><select class="input" id="fee-reg" onchange="feeLedger()"></select></div>
+            <div class="ledger" id="fee-ledger"></div>
+            <div class="form-grid">
+              <div class="field"><label class="label" for="fee-amount">Amount (₹)</label><input class="input" id="fee-amount" type="number" step="0.01"><div class="hint">CHECK greater than 0 and at most 50,000</div></div>
+              <div class="field"><label class="label" for="fee-date">Paid on</label><input class="input" id="fee-date" type="date"></div>
+            </div>
+            <div class="ledger-row" style="border:0;padding:0"><span>Next receipt number</span><b class="mono" id="fee-receipt"></b></div>
+            <button class="btn btn-primary btn-block" onclick="recordPayment()"><span data-ic="receipt"></span>Record payment</button>
+            <div class="form-grid"><div class="field"><label class="label" for="fee-split">Split balance into</label><select class="input" id="fee-split" onchange="feeSplit()"><option value="1">1 payment</option><option value="2">2 payments</option><option value="3">3 payments</option><option value="4">4 payments</option></select></div>
+              <div class="field" style="align-self:end"><div class="hint" id="fee-split-out" style="font-size:13px;color:var(--fg-2)"></div></div></div>
+          </div></div>
+        <div class="card"><div data-head="receipt|good|Payment history|Receipts for the selected registration"></div><div id="fee-history"></div></div>
+      </div>
+      <div class="card gap"><div data-head="list|warn|Fee dues|ACTIVE registrations, largest balance first"></div><div id="fee-dues"></div></div>
+    </section>
+
+    <!-- CRUD -->
+    <section class="page" id="page-crud">
+      <div class="page-head"><div><div class="page-title">CRUD Manager</div><div class="page-sub">Create, read, update and delete rows. Every constraint in the schema is enforced.</div></div><button class="btn btn-primary" onclick="crudForm(ui.crudTab)"><span data-ic="plus"></span>Add record</button></div>
+      <div class="tabs" id="crud-tabs" style="margin-bottom:16px"></div>
+      <div class="card"><div class="card-title" id="crud-title" style="margin-bottom:14px"></div><div id="crud-table"></div></div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="page" id="page-reports">
+      <div class="page-head"><div><div class="page-title">Analytics &amp; Reports</div><div class="page-sub">The six Review 2 SQL reports, computed from the live data</div></div><button class="btn" onclick="renderReports()"><span data-ic="refresh"></span>Refresh</button></div>
+      <div class="grid-stats" id="rep-metrics"></div>
+      <div class="grid-2">
+        <div class="card"><div data-head="wallet|good|Fee collection by route|Collected against plan amounts"></div><div id="rep-bars"></div></div>
+        <div class="card"><div data-head="list|info|Registrations by status|"></div><div id="rep-status"></div></div>
+      </div>
+      <div class="card gap"><div data-head="db|accent|SQL query reports|Same queries as review2_queries_and_views.sql"></div>
+        <div class="tabs" id="rep-tabs"></div>
+        <div class="rep-meta"><div class="sub" id="rep-note"></div>
+          <div class="field" id="rep-date-wrap" hidden><label class="label" for="rep-date">Trip date</label><input class="input" id="rep-date" type="date" onchange="repDateChange()"></div></div>
+        <pre class="sql" id="rep-sql"></pre>
+        <div class="rep-count" id="rep-count"></div>
+        <div id="rep-result"></div></div>
+    </section>
+  </main>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head"><div class="modal-title" id="modal-title"></div><button class="modal-x" onclick="closeModal()" aria-label="Close"><span data-ic="x"></span></button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ============================================================================
+   ENGINE: a small in-browser relational store that enforces the Review 2 schema
+   (types, NOT NULL, CHECK, PRIMARY KEY, UNIQUE, the partial unique index,
+   foreign keys including the composite one) and runs the two BEFORE triggers.
+   Error codes and messages follow PostgreSQL's wording.
+   ========================================================================== */
+
+class DbError extends Error {
+  constructor(code, message, detail, constraint) {
+    super(message);
+    this.code = code;
+    this.detail = detail || '';
+    this.constraint = constraint || '';
+  }
+}
+
+const I = (n, o = {}) => ({ n, t: 'int', ...o });
+const S = (n, max, o = {}) => ({ n, t: 'text', max, ...o });
+const N = (n, p, s, o = {}) => ({ n, t: 'num', p, s, ...o });
+const D = (n, o = {}) => ({ n, t: 'date', ...o });
+const TM = (n, o = {}) => ({ n, t: 'time', ...o });
+const oneOf = (...xs) => (v) => xs.includes(v);
+
+const SCHEMA = {
+  Bus: {
+    pk: ['bus_id'],
+    cols: [I('bus_id'), S('number', 20, { unique: true }), I('capacity', { check: (v) => v > 0 && v <= 60 }),
+      S('model', 80), S('status', 12, { check: oneOf('ACTIVE', 'SERVICE') })],
+  },
+  Driver: {
+    pk: ['driver_id'],
+    cols: [I('driver_id'), S('name', 80),
+      S('license_no', 15, { unique: true, check: (v) => /^[A-Z]{2}[0-9]{2}[0-9]{11}$/.test(v) }), S('phone', 15)],
+  },
+  Attendant: { pk: ['attendant_id'], cols: [I('attendant_id'), S('name', 80), S('phone', 15)] },
+  Route: {
+    pk: ['route_id'],
+    cols: [I('route_id'), S('route_name', 100), I('bus_id'), I('driver_id'), I('attendant_id'),
+      S('shift', 10, { check: oneOf('MORNING', 'AFTERNOON') })],
+    fks: [{ c: ['bus_id'], ref: 'Bus' }, { c: ['driver_id'], ref: 'Driver' }, { c: ['attendant_id'], ref: 'Attendant' }],
+  },
+  Stop: {
+    pk: ['stop_id'],
+    cols: [I('stop_id'), S('stop_name', 100), N('latitude', 9, 6, { check: (v) => v >= -90 && v <= 90 }),
+      N('longitude', 9, 6, { check: (v) => v >= -180 && v <= 180 })],
+  },
+  RouteSequence: {
+    pk: ['route_id', 'stop_id'],
+    cols: [I('route_id'), I('stop_id'), I('seq_no', { check: (v) => v > 0 }), TM('scheduled_time')],
+    uniques: [{ c: ['route_id', 'seq_no'] }],
+    fks: [{ c: ['route_id'], ref: 'Route' }, { c: ['stop_id'], ref: 'Stop' }],
+  },
+  Student: {
+    pk: ['student_id'],
+    cols: [I('student_id'), S('name', 80), S('class', 8), S('section', 4), S('guardian_name', 80)],
+  },
+  FeePlan: {
+    pk: ['plan_id'],
+    cols: [I('plan_id'), S('term', 20), N('amount', 10, 2, { check: (v) => v > 0 }), S('academic_year', 9)],
+  },
+  TransportRegistration: {
+    pk: ['reg_id'],
+    cols: [I('reg_id'), I('student_id'), I('route_id'), I('stop_id'), I('plan_id'), D('start_date'),
+      S('status', 10, { check: oneOf('ACTIVE', 'INACTIVE') })],
+    fks: [{ c: ['student_id'], ref: 'Student' }, { c: ['plan_id'], ref: 'FeePlan' },
+      { c: ['route_id', 'stop_id'], ref: 'RouteSequence' }],
+    partial: [{ name: 'one_active_assignment_per_student', c: ['student_id'], when: (r) => r.status === 'ACTIVE' }],
+    triggers: [{ name: 'trg_enforce_bus_capacity', on: ['INSERT', 'UPDATE'], of: ['route_id', 'status'], fn: 'capacity' }],
+  },
+  PickupLog: {
+    pk: ['log_id'],
+    cols: [I('log_id'), I('reg_id'), D('trip_date'), S('event_type', 8, { check: oneOf('PICKUP', 'DROP') }), TM('event_time')],
+    uniques: [{ c: ['reg_id', 'trip_date', 'event_type'] }],
+    fks: [{ c: ['reg_id'], ref: 'TransportRegistration' }],
+    triggers: [{ name: 'trg_validate_pickup_log', on: ['INSERT', 'UPDATE'], fn: 'pickup' }],
+  },
+  Payment: {
+    pk: ['payment_id'],
+    cols: [I('payment_id'), I('reg_id'), D('paid_on'), N('amount', 10, 2, { check: (v) => v > 0 && v <= 50000 }),
+      S('receipt_no', 30, { unique: true })],
+    fks: [{ c: ['reg_id'], ref: 'TransportRegistration' }],
+  },
+  MaintenanceRecord: {
+    pk: ['maint_id'],
+    cols: [I('maint_id'), I('bus_id'), D('service_date'), S('description', 200), N('cost', 10, 2, { check: (v) => v >= 0 }), D('next_due')],
+    fks: [{ c: ['bus_id'], ref: 'Bus' }],
+  },
+};
+
+const TABLE_ORDER = ['Bus', 'Driver', 'Attendant', 'Route', 'Stop', 'RouteSequence', 'Student', 'FeePlan',
+  'TransportRegistration', 'PickupLog', 'Payment', 'MaintenanceRecord'];
+
+/* Same sample rows as review2_queries_and_views.sql (all people are fictional). */
+const SEED = {
+  Bus: [
+    { bus_id: 18, number: 'CG04-SC-0018', capacity: 24, model: 'Eicher Skyline', status: 'SERVICE' },
+    { bus_id: 27, number: 'CG04-SC-0027', capacity: 32, model: 'Ashok Leyland Oyster', status: 'ACTIVE' },
+    { bus_id: 43, number: 'CG04-SC-0043', capacity: 40, model: 'Tata Starbus', status: 'ACTIVE' },
+  ],
+  Driver: [
+    { driver_id: 1, name: 'Ramesh Sahu', license_no: 'CG0420180012345', phone: '9826100101' },
+    { driver_id: 2, name: 'Dilip Yadav', license_no: 'CG0420190054321', phone: '9826100102' },
+    { driver_id: 3, name: 'Mohan Verma', license_no: 'CG0420200098765', phone: '9826100103' },
+  ],
+  Attendant: [
+    { attendant_id: 1, name: 'Sunita Bai', phone: '9826200201' },
+    { attendant_id: 2, name: 'Kavita Netam', phone: '9826200202' },
+  ],
+  Route: [
+    { route_id: 1, route_name: 'Civil Lines → KPS Dunda', bus_id: 43, driver_id: 1, attendant_id: 1, shift: 'MORNING' },
+    { route_id: 2, route_name: 'Shankar Nagar → KPS', bus_id: 27, driver_id: 2, attendant_id: 2, shift: 'MORNING' },
+  ],
+  Stop: [
+    { stop_id: 1, stop_name: 'Civil Lines', latitude: 21.2393, longitude: 81.6521 },
+    { stop_id: 2, stop_name: 'Indira Gandhi Chowk', latitude: 21.2366, longitude: 81.6702 },
+    { stop_id: 3, stop_name: 'Allen Career Institute', latitude: 21.2232, longitude: 81.6452 },
+    { stop_id: 4, stop_name: 'Colours Mall', latitude: 21.2171, longitude: 81.6563 },
+    { stop_id: 5, stop_name: 'Krishna Public School', latitude: 21.1965, longitude: 81.6441 },
+    { stop_id: 6, stop_name: 'Shankar Nagar', latitude: 21.24, longitude: 81.66 },
+  ],
+  RouteSequence: [
+    { route_id: 1, stop_id: 1, seq_no: 1, scheduled_time: '06:45:00' },
+    { route_id: 1, stop_id: 2, seq_no: 2, scheduled_time: '06:53:00' },
+    { route_id: 1, stop_id: 3, seq_no: 3, scheduled_time: '07:01:00' },
+    { route_id: 1, stop_id: 4, seq_no: 4, scheduled_time: '07:12:00' },
+    { route_id: 1, stop_id: 5, seq_no: 5, scheduled_time: '07:30:00' },
+    { route_id: 2, stop_id: 6, seq_no: 1, scheduled_time: '06:50:00' },
+    { route_id: 2, stop_id: 5, seq_no: 2, scheduled_time: '07:25:00' },
+  ],
+  Student: [
+    { student_id: 1, name: 'Aarav Sharma', class: '8', section: 'A', guardian_name: 'Rajesh Sharma' },
+    { student_id: 2, name: 'Ishita Verma', class: '7', section: 'B', guardian_name: 'Meena Verma' },
+    { student_id: 3, name: 'Kabir Singh', class: '9', section: 'A', guardian_name: 'Harpreet Singh' },
+    { student_id: 4, name: 'Anaya Patel', class: '6', section: 'C', guardian_name: 'Nilesh Patel' },
+    { student_id: 5, name: 'Vihaan Tiwari', class: '8', section: 'B', guardian_name: 'Sanjay Tiwari' },
+    { student_id: 6, name: 'Diya Chandrakar', class: '5', section: 'A', guardian_name: 'Pooja Chandrakar' },
+  ],
+  FeePlan: [
+    { plan_id: 1, term: 'TERM-1', amount: 6500, academic_year: '2026-2027' },
+    { plan_id: 2, term: 'ANNUAL', amount: 6000, academic_year: '2025-2026' },
+  ],
+  TransportRegistration: [
+    { reg_id: 1, student_id: 1, route_id: 1, stop_id: 1, plan_id: 1, start_date: '2026-07-01', status: 'ACTIVE' },
+    { reg_id: 2, student_id: 2, route_id: 1, stop_id: 2, plan_id: 1, start_date: '2026-07-01', status: 'ACTIVE' },
+    { reg_id: 3, student_id: 3, route_id: 1, stop_id: 3, plan_id: 1, start_date: '2026-07-01', status: 'ACTIVE' },
+    { reg_id: 4, student_id: 4, route_id: 1, stop_id: 4, plan_id: 1, start_date: '2026-07-01', status: 'ACTIVE' },
+    { reg_id: 5, student_id: 5, route_id: 2, stop_id: 6, plan_id: 1, start_date: '2026-07-01', status: 'ACTIVE' },
+    { reg_id: 6, student_id: 6, route_id: 2, stop_id: 6, plan_id: 1, start_date: '2026-07-01', status: 'ACTIVE' },
+    { reg_id: 7, student_id: 1, route_id: 2, stop_id: 6, plan_id: 2, start_date: '2025-07-01', status: 'INACTIVE' },
+  ],
+  PickupLog: [
+    { log_id: 1, reg_id: 1, trip_date: '2026-10-11', event_type: 'PICKUP', event_time: '06:46:00' },
+    { log_id: 2, reg_id: 2, trip_date: '2026-10-11', event_type: 'PICKUP', event_time: '06:54:00' },
+    { log_id: 3, reg_id: 4, trip_date: '2026-10-11', event_type: 'PICKUP', event_time: '07:13:00' },
+    { log_id: 4, reg_id: 5, trip_date: '2026-10-11', event_type: 'PICKUP', event_time: '06:51:00' },
+    { log_id: 5, reg_id: 1, trip_date: '2026-10-11', event_type: 'DROP', event_time: '07:31:00' },
+    { log_id: 6, reg_id: 2, trip_date: '2026-10-11', event_type: 'DROP', event_time: '07:31:00' },
+    { log_id: 7, reg_id: 4, trip_date: '2026-10-11', event_type: 'DROP', event_time: '07:32:00' },
+    { log_id: 8, reg_id: 5, trip_date: '2026-10-11', event_type: 'DROP', event_time: '07:26:00' },
+  ],
+  Payment: [
+    { payment_id: 1, reg_id: 1, paid_on: '2026-07-05', amount: 6500, receipt_no: 'RCPT-2026-0001' },
+    { payment_id: 2, reg_id: 2, paid_on: '2026-07-06', amount: 3000, receipt_no: 'RCPT-2026-0002' },
+    { payment_id: 3, reg_id: 2, paid_on: '2026-09-10', amount: 1500, receipt_no: 'RCPT-2026-0031' },
+    { payment_id: 4, reg_id: 4, paid_on: '2026-07-08', amount: 6500, receipt_no: 'RCPT-2026-0004' },
+    { payment_id: 5, reg_id: 5, paid_on: '2026-07-09', amount: 3250, receipt_no: 'RCPT-2026-0005' },
+    { payment_id: 6, reg_id: 7, paid_on: '2025-07-02', amount: 6000, receipt_no: 'RCPT-2025-0090' },
+  ],
+  MaintenanceRecord: [
+    { maint_id: 1, bus_id: 18, service_date: '2026-02-20', description: 'Routine service and oil change', cost: 6800, next_due: '2026-08-20' },
+    { maint_id: 2, bus_id: 18, service_date: '2026-08-20', description: 'Brake pad replacement and gearbox inspection', cost: 18500, next_due: '2026-09-30' },
+    { maint_id: 3, bus_id: 27, service_date: '2026-06-15', description: 'Engine oil change and tyre rotation', cost: 7200, next_due: '2026-12-15' },
+    { maint_id: 4, bus_id: 43, service_date: '2026-07-10', description: 'Full service and fitness inspection', cost: 12400, next_due: '2027-01-10' },
+  ],
+};
+
+/* ---------- type parsing ---------- */
+function parseValue(col, raw) {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === 'string' && raw.trim() === '' ) return null;
+  const s = String(raw).trim();
+  switch (col.t) {
+    case 'int': {
+      if (!/^-?\d+$/.test(s)) throw new DbError('22P02', `invalid input syntax for type integer: "${s}"`);
+      const n = Number(s);
+      if (Math.abs(n) > 2147483647) throw new DbError('22003', `value "${s}" is out of range for type integer`);
+      return n;
+    }
+    case 'num': {
+      if (!/^-?\d+(\.\d+)?$/.test(s)) throw new DbError('22P02', `invalid input syntax for type numeric: "${s}"`);
+      const n = Math.round(Number(s) * 10 ** col.s) / 10 ** col.s;
+      if (Math.abs(n) >= 10 ** (col.p - col.s)) {
+        throw new DbError('22003', 'numeric field overflow',
+          `A field with precision ${col.p}, scale ${col.s} must round to an absolute value less than 10^${col.p - col.s}.`);
+      }
+      return n;
+    }
+    case 'text':
+      if (s.length > col.max) throw new DbError('22001', `value too long for type character varying(${col.max})`);
+      return s;
+    case 'date': {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      const d = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      if (!m || d.getUTCFullYear() !== +m[1] || d.getUTCMonth() !== +m[2] - 1 || d.getUTCDate() !== +m[3]) {
+        throw new DbError('22007', `invalid input syntax for type date: "${s}"`);
+      }
+      return s;
+    }
+    case 'time': {
+      const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s);
+      if (!m || +m[1] > 23 || +m[2] > 59 || +(m[3] || 0) > 59) {
+        throw new DbError('22007', `invalid input syntax for type time: "${s}"`);
+      }
+      return `${m[1].padStart(2, '0')}:${m[2]}:${(m[3] || '00').padStart(2, '0')}`;
+    }
+  }
+  return s;
+}
+
+const lc = (s) => s.toLowerCase();
+const keyText = (cols, row) => `(${cols.join(', ')})=(${cols.map((c) => row[c]).join(', ')})`;
+const sqlLit = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
+
+/* ---------- BEFORE triggers (same logic as review2_schema_ddl.sql) ---------- */
+const TRIGGERS = {
+  capacity(db, NEW) {
+    if (NEW.status !== 'ACTIVE') return;
+    const route = db.find('Route', { route_id: NEW.route_id });
+    if (!route) return;
+    const cap = db.find('Bus', { bus_id: route.bus_id }).capacity;
+    const active = db.data.TransportRegistration.filter(
+      (r) => r.route_id === NEW.route_id && r.status === 'ACTIVE' && r.reg_id !== NEW.reg_id).length;
+    if (active + 1 > cap) {
+      throw new DbError('23514', `Capacity Conflict: Route ${NEW.route_id} already has ${active} ACTIVE students; its bus seats only ${cap}.`);
+    }
+  },
+  pickup(db, NEW) {
+    const reg = db.find('TransportRegistration', { reg_id: NEW.reg_id });
+    if (!reg || reg.status !== 'ACTIVE') {
+      throw new DbError('23514', `Integrity Violation: Registration ${NEW.reg_id} is not ACTIVE, so no pickup events can be logged.`);
+    }
+    const same = (type) => db.data.PickupLog.find(
+      (l) => l.reg_id === NEW.reg_id && l.trip_date === NEW.trip_date && l.event_type === type && l.log_id !== NEW.log_id);
+    if (NEW.event_type === 'DROP') {
+      const pu = same('PICKUP');
+      if (!pu) throw new DbError('23514', `Integrity Violation: Registration ${NEW.reg_id} has no PICKUP on ${NEW.trip_date} to match this DROP.`);
+      if (NEW.event_time < pu.event_time) {
+        throw new DbError('23514', `Integrity Violation: DROP time ${NEW.event_time} is before the PICKUP time ${pu.event_time}.`);
+      }
+    } else {
+      const dr = same('DROP');
+      if (dr && NEW.event_time > dr.event_time) {
+        throw new DbError('23514', `Integrity Violation: PICKUP time ${NEW.event_time} is after the DROP time ${dr.event_time}.`);
+      }
+    }
+  },
+};
+
+/* ---------- the database ---------- */
+class Database {
+  constructor(logger) {
+    this.logger = logger || (() => {});
+    this.depth = 0;
+    this.reset();
+  }
+
+  reset() {
+    this.data = JSON.parse(JSON.stringify(SEED));
+  }
+
+  log(kind, text) { this.logger(kind, text); }
+
+  list(table) { return this.data[table]; }
+
+  find(table, where) {
+    return this.data[table].find((r) => Object.keys(where).every((k) => r[k] === where[k]));
+  }
+
+  nextId(table) {
+    const pk = SCHEMA[table].pk[0];
+    return this.data[table].reduce((m, r) => Math.max(m, r[pk]), 0) + 1;
+  }
+
+  /* BEGIN ... COMMIT / ROLLBACK around several statements */
+  tx(label, fn) {
+    if (this.depth > 0) return fn();
+    const snap = JSON.stringify(this.data);
+    this.depth++;
+    this.log('sql', 'BEGIN;  -- ' + label);
+    try {
+      const out = fn();
+      this.log('ok', 'COMMIT');
+      return out;
+    } catch (e) {
+      this.data = JSON.parse(snap);
+      this.log('warn', 'ROLLBACK · no changes were saved');
+      throw e;
+    } finally {
+      this.depth--;
+    }
+  }
+
+  /* ----- constraint checks shared by insert and update ----- */
+  validate(table, row, self, op, setCols) {
+    const sch = SCHEMA[table];
+    const rel = lc(table);
+    // BEFORE triggers run first, as in PostgreSQL
+    for (const t of sch.triggers || []) {
+      if (!t.on.includes(op)) continue;
+      if (op === 'UPDATE' && t.of && !t.of.some((c) => setCols.includes(c))) continue;
+      this.log('trg', `TRIGGER ${t.name} fired BEFORE ${op}`);
+      TRIGGERS[t.fn](this, row);
+    }
+    for (const c of sch.cols) {
+      if (row[c.n] === null) {
+        throw new DbError('23502', `null value in column "${c.n}" of relation "${rel}" violates not-null constraint`);
+      }
+    }
+    for (const c of sch.cols) {
+      if (c.check && !c.check(row[c.n])) {
+        throw new DbError('23514', `new row for relation "${rel}" violates check constraint "${rel}_${c.n}_check"`,
+          `Failing row contains (${sch.cols.map((x) => row[x.n]).join(', ')}).`, `${rel}_${c.n}_check`);
+      }
+    }
+    const others = this.data[table].filter((r) => r !== self);
+    const dup = (cols, name, when) => {
+      if (when && !when(row)) return;
+      const hit = others.find((r) => cols.every((k) => r[k] === row[k]) && (!when || when(r)));
+      if (hit) throw new DbError('23505', `duplicate key value violates unique constraint "${name}"`,
+        `Key ${keyText(cols, row)} already exists.`, name);
+    };
+    dup(sch.pk, `${rel}_pkey`);
+    for (const c of sch.cols) if (c.unique) dup([c.n], `${rel}_${c.n}_key`);
+    for (const u of sch.uniques || []) dup(u.c, `${rel}_${u.c.join('_')}_key`);
+    for (const p of sch.partial || []) dup(p.c, p.name, p.when);
+    for (const fk of sch.fks || []) {
+      const refSch = SCHEMA[fk.ref];
+      const refCols = fk.c.length === refSch.pk.length ? refSch.pk : refSch.pk;
+      const where = {};
+      fk.c.forEach((c, i) => { where[refCols[i]] = row[c]; });
+      if (!this.find(fk.ref, where)) {
+        const name = `${rel}_${fk.c.join('_')}_fkey`;
+        throw new DbError('23503', `insert or update on table "${rel}" violates foreign key constraint "${name}"`,
+          `Key ${keyText(fk.c, row)} is not present in table "${lc(fk.ref)}".`, name);
+      }
+    }
+  }
+
+  stmt(kind, text, fn) {
+    this.log('sql', text);
+    try {
+      const out = fn();
+      this.log('ok', kind);
+      return out;
+    } catch (e) {
+      if (e instanceof DbError) this.log('err', `ERROR ${e.code}: ${e.message}` + (e.detail ? `  ·  ${e.detail}` : ''));
+      throw e;
+    }
+  }
+
+  insert(table, input) {
+    const sch = SCHEMA[table];
+    const cols = sch.cols.map((c) => c.n);
+    let row;
+    const text = () => `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${cols.map((c) => sqlLit(row ? row[c] : input[c])).join(', ')});`;
+    return this.stmt('INSERT 0 1', text(), () => {
+      row = {};
+      for (const c of sch.cols) row[c.n] = parseValue(c, input[c.n]);
+      this.validate(table, row, null, 'INSERT', cols);
+      this.data[table].push(row);
+      return row;
+    });
+  }
+
+  update(table, where, patch) {
+    const sch = SCHEMA[table];
+    const setCols = Object.keys(patch);
+    const text = `UPDATE ${table} SET ${setCols.map((k) => `${k} = ${sqlLit(patch[k])}`).join(', ')} WHERE ${sch.pk.map((k) => `${k} = ${sqlLit(where[k])}`).join(' AND ')};`;
+    return this.stmt('UPDATE 1', text, () => {
+      const cur = this.find(table, where);
+      if (!cur) throw new DbError('02000', 'no row matched the update');
+      const row = { ...cur };
+      for (const k of setCols) row[k] = parseValue(sch.cols.find((c) => c.n === k), patch[k]);
+      this.validate(table, row, cur, 'UPDATE', setCols);
+      Object.assign(cur, row);
+      return cur;
+    });
+  }
+
+  remove(table, where) {
+    const sch = SCHEMA[table];
+    const text = `DELETE FROM ${table} WHERE ${sch.pk.map((k) => `${k} = ${sqlLit(where[k])}`).join(' AND ')};`;
+    return this.stmt('DELETE 1', text, () => {
+      const cur = this.find(table, where);
+      if (!cur) throw new DbError('02000', 'no row matched the delete');
+      for (const other of TABLE_ORDER) {
+        for (const fk of SCHEMA[other].fks || []) {
+          if (fk.ref !== table) continue;
+          const refCols = SCHEMA[table].pk;
+          const used = this.data[other].some((r) => fk.c.every((c, i) => r[c] === cur[refCols[i]]));
+          if (used) {
+            const name = `${lc(other)}_${fk.c.join('_')}_fkey`;
+            throw new DbError('23503', `update or delete on table "${lc(table)}" violates foreign key constraint "${name}" on table "${lc(other)}"`,
+              `Key ${keyText(refCols, cur)} is still referenced from table "${lc(other)}".`, name);
+          }
+        }
+      }
+      this.data[table] = this.data[table].filter((r) => r !== cur);
+      return cur;
+    });
+  }
+
+  /* ----- read models (the same joins as the Review 2 reports) ----- */
+  stopsOf(routeId) {
+    return this.data.RouteSequence.filter((r) => r.route_id === routeId)
+      .sort((a, b) => a.seq_no - b.seq_no)
+      .map((rs) => ({ ...rs, stop: this.find('Stop', { stop_id: rs.stop_id }) }));
+  }
+
+  routeView(route) {
+    const bus = this.find('Bus', { bus_id: route.bus_id });
+    const active = this.data.TransportRegistration.filter((r) => r.route_id === route.route_id && r.status === 'ACTIVE').length;
+    return {
+      ...route, bus,
+      driver: this.find('Driver', { driver_id: route.driver_id }),
+      attendant: this.find('Attendant', { attendant_id: route.attendant_id }),
+      stops: this.stopsOf(route.route_id),
+      active, vacant: bus.capacity - active,
+      pct: Math.round((10000 * active) / bus.capacity) / 100,
+    };
+  }
+
+  paidFor(regId) {
+    return this.data.Payment.filter((p) => p.reg_id === regId).reduce((s, p) => s + p.amount, 0);
+  }
+
+  regView(reg) {
+    const plan = this.find('FeePlan', { plan_id: reg.plan_id });
+    const paid = this.paidFor(reg.reg_id);
+    const route = this.find('Route', { route_id: reg.route_id });
+    return {
+      ...reg,
+      student: this.find('Student', { student_id: reg.student_id }),
+      route, plan,
+      stop: this.find('Stop', { stop_id: reg.stop_id }),
+      seq: this.find('RouteSequence', { route_id: reg.route_id, stop_id: reg.stop_id }),
+      bus: this.find('Bus', { bus_id: route.bus_id }),
+      paid, due: Math.round((plan.amount - paid) * 100) / 100,
+    };
+  }
+
+  /* vw_FeeDues: ACTIVE registrations only */
+  feeDues() {
+    return this.data.TransportRegistration.filter((r) => r.status === 'ACTIVE').map((r) => this.regView(r));
+  }
+
+  absentOn(date) {
+    return this.data.TransportRegistration.filter((r) => r.status === 'ACTIVE' &&
+      !this.data.PickupLog.some((l) => l.reg_id === r.reg_id && l.trip_date === date && l.event_type === 'PICKUP'))
+      .map((r) => this.regView(r));
+  }
+
+  maintenanceStatus() {
+    return this.data.Bus.flatMap((b) => {
+      const recs = this.data.MaintenanceRecord.filter((m) => m.bus_id === b.bus_id);
+      if (!recs.length) return [];
+      const last = recs.reduce((a, m) => (m.service_date > a.service_date ? m : a));
+      return recs.filter((m) => m.service_date === last.service_date).map((m) => ({ bus: b, ...m }));
+    });
+  }
+}
+
+if (typeof module !== 'undefined') module.exports = { Database, DbError, SCHEMA, SEED, TABLE_ORDER };
+
+</script>
+<script>
+'use strict';
+/* ============================================================================
+   APP: pages, forms and reports on top of the engine
+   ========================================================================== */
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 });
+const fmt = (n) => '₹' + money.format(Math.round(n * 100) / 100);
+const hm = (t) => String(t).slice(0, 5);
+const toMin = (t) => { const [h, m] = String(t).split(':'); return +h * 60 + +m; };
+const localISO = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+const TODAY = localISO();
+const nowClock = () => new Date().toTimeString().slice(0, 8);
+
+const ICONS = {
+  gauge: '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  bus: '<path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/>',
+  userplus: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  list: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  clip: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  wallet: '<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>',
+  db: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  chart: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  term: '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/>',
+  cap: '<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  undo: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+};
+const ic = (name, size = 16) => `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
+
+/* ---------------- log terminal ---------------- */
+const LOG = [];
+function logLine(kind, text) {
+  LOG.push({ t: nowClock(), kind, text });
+  if (LOG.length > 250) LOG.shift();
+  $$('.terminal').forEach(renderTerm);
+}
+function renderTerm(el) {
+  el.innerHTML = LOG.map((l) => `<div class="log-line"><span class="log-time">[${l.t}]</span> <span class="log-${l.kind}">${esc(l.text)}</span></div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+const terminal = (id, title) => `<div class="terminal" id="${id}" role="log" aria-label="${esc(title)}" tabindex="0"></div>`;
+
+const db = new Database(logLine);
+
+/* ---------------- shared UI helpers ---------------- */
+function toast(title, msg, type = 'info') {
+  const box = $('#toasts');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<div class="toast-title">${esc(title)}</div><div class="toast-msg">${esc(msg)}</div>`;
+  box.appendChild(el);
+  setTimeout(() => el.classList.add('out'), 4600);
+  setTimeout(() => el.remove(), 5000);
+}
+function dbFail(title, e) {
+  if (e instanceof DbError) toast(title, e.message + (e.detail ? ' ' + e.detail : ''), 'error');
+  else { toast(title, e.message || String(e), 'error'); console.error(e); }
+}
+function openModal(title, html) {
+  $('#modal-title').textContent = title;
+  $('#modal-body').innerHTML = html;
+  $('#modal').classList.add('open');
+  const first = $('#modal-body input:not([disabled]), #modal-body select, #modal-body button');
+  if (first) first.focus();
+}
+function closeModal() { $('#modal').classList.remove('open'); }
+const BADGE = {
+  ACTIVE: ['good', 'ACTIVE'], CONFIRMED: ['good', 'CONFIRMED'], PICKUP: ['good', 'PICKUP'], INACTIVE: ['muted', 'INACTIVE'],
+  SERVICE: ['warn', 'IN SERVICE'], DROP: ['info', 'DROP'], MORNING: ['info', 'MORNING'], AFTERNOON: ['warn', 'AFTERNOON'],
+  PAID: ['good', 'PAID'], PART: ['warn', 'PART-PAID'], UNPAID: ['bad', 'UNPAID'], OVERDUE: ['bad', 'OVERDUE'],
+  OK: ['good', 'UP TO DATE'], ABSENT: ['bad', 'NOT BOARDED'], BOARDED: ['good', 'PICKED UP'], DROPPED: ['info', 'DROPPED'], FULL: ['bad', 'ROUTE FULL'],
+};
+const badge = (s) => { const [tone, label] = BADGE[s] || ['muted', s]; return `<span class="badge ${tone}">${esc(label)}</span>`; };
+const empty = (title, sub) => `<div class="empty"><div class="empty-title">${esc(title)}</div><div class="empty-sub">${esc(sub || '')}</div></div>`;
+const meter = (pct, tone) => `<div class="meter" role="img" aria-label="${Math.round(pct)} percent"><div class="meter-fill ${tone || meterTone(pct)}" style="width:${Math.min(100, Math.max(0, pct))}%"></div></div>`;
+const meterTone = (pct) => (pct >= 85 ? 'bad' : pct >= 60 ? 'warn' : 'good');
+function table(cols, rows, opts = {}) {
+  if (!rows.length) return empty(opts.emptyTitle || 'No rows', opts.emptySub);
+  return `<div class="table-wrap"><table><thead><tr>${cols.map((c) => `<th${c.num ? ' class="num"' : ''}>${esc(c.h)}</th>`).join('')}</tr></thead><tbody>${
+    rows.map((r) => `<tr>${cols.map((c) => `<td class="${c.num ? 'num ' : ''}${c.cls || ''}">${c.html ? c.html(r) : esc(c.f ? c.f(r) : r[c.k])}</td>`).join('')}</tr>`).join('')
+  }</tbody></table></div>`;
+}
+const cardHead = (icon, tone, title, sub) => `<div class="card-head"><div class="card-icon ${tone}">${ic(icon, 18)}</div><div><div class="card-title">${esc(title)}</div>${sub ? `<div class="card-sub">${esc(sub)}</div>` : ''}</div></div>`;
+
+const ui = { page: 'dashboard', crudTab: 'Bus', repTab: 0, repDate: null, trackRoute: 1, trackDate: null, feeReg: null, deReg: null, regFilter: 'ALL', regQuery: '' };
+const latestTripDate = () => db.list('PickupLog').reduce((m, l) => (l.trip_date > m ? l.trip_date : m), '') || TODAY;
+
+/* ---------------- navigation ---------------- */
+const PAGES = {
+  dashboard: ['Dashboard Overview', () => renderDashboard()],
+  search: ['Route Search', () => renderSearch()],
+  register: ['Register Student', () => renderRegister()],
+  registrations: ['All Registrations', () => renderRegistrations()],
+  tracker: ['Pickup Tracker', () => renderTracker()],
+  deregister: ['Deactivate Registration', () => renderDeregister()],
+  fees: ['Fees & Payments', () => renderFees()],
+  crud: ['CRUD Manager', () => renderCrud()],
+  reports: ['Analytics & Reports', () => renderReports()],
+};
+function navigate(page) {
+  ui.page = page;
+  $$('.page').forEach((p) => p.classList.toggle('active', p.id === 'page-' + page));
+  $$('.nav-item').forEach((n) => { const on = n.dataset.page === page; n.classList.toggle('active', on); if (on) n.setAttribute('aria-current', 'page'); else n.removeAttribute('aria-current'); });
+  $('#topbar-title').textContent = PAGES[page][0];
+  PAGES[page][1]();
+  badges();
+  window.scrollTo(0, 0);
+}
+function refresh() { PAGES[ui.page][1](); badges(); }
+function badges() {
+  const regs = db.list('TransportRegistration');
+  $('#nb-regs').textContent = regs.length;
+  const absent = db.absentOn(ui.trackDate || latestTripDate()).length;
+  $('#nb-absent').textContent = absent;
+}
+
+/* ---------------- dashboard ---------------- */
+function renderDashboard() {
+  const regs = db.list('TransportRegistration');
+  const active = regs.filter((r) => r.status === 'ACTIVE');
+  const date = latestTripDate();
+  const picked = new Set(db.list('PickupLog').filter((l) => l.trip_date === date && l.event_type === 'PICKUP').map((l) => l.reg_id));
+  const boarded = active.filter((r) => picked.has(r.reg_id)).length;
+  const dues = db.feeDues();
+  const owed = dues.reduce((s, r) => s + Math.max(0, r.due), 0);
+  const collected = db.list('Payment').reduce((s, p) => s + p.amount, 0);
+  const withBalance = dues.filter((r) => r.due > 0).length;
+  const recent = regs.slice().sort((a, b) => b.reg_id - a.reg_id).slice(0, 5).map((r) => db.regView(r));
+  const routes = db.list('Route').map((r) => db.routeView(r));
+  $('#dash-kpis').innerHTML = [
+    ['Active registrations', active.length, `${regs.length - active.length} inactive on record`, 'good'],
+    [`Boarded on ${date}`, `${boarded}/${active.length}`, `${active.length - boarded} absent`, 'info'],
+    ['Fees collected', fmt(collected), `${db.list('Payment').length} receipts issued`, 'accent'],
+    ['Outstanding dues', fmt(owed), `${withBalance} students with a balance`, 'bad'],
+  ].map(([l, v, s, t]) => `<div class="stat ${t}"><div class="stat-label">${esc(l)}</div><div class="stat-value">${esc(v)}</div><div class="stat-sub">${esc(s)}</div></div>`).join('');
+  $('#dash-recent').innerHTML = table([
+    { h: 'Reg', html: (r) => `<span class="mono accent-text">#${r.reg_id}</span>` },
+    { h: 'Student', f: (r) => r.student.name },
+    { h: 'Route', f: (r) => r.route.route_name },
+    { h: 'Pickup stop', f: (r) => r.stop.stop_name },
+    { h: 'Status', html: (r) => badge(r.status) },
+  ], recent);
+  $('#dash-occupancy').innerHTML = routes.map((r) => `<div class="occ"><div class="occ-top"><span class="occ-name">${esc(r.route_name)}</span><span class="occ-num">${r.active}/${r.bus.capacity} seats · ${r.pct}%</span></div>${meter(r.pct)}<div class="occ-sub">${esc(r.bus.number)} · ${esc(r.bus.model)}</div></div>`).join('');
+  $('#dash-quick').innerHTML = [
+    [db.list('Bus').length, 'Buses'], [db.list('Route').length, 'Routes'],
+    [db.list('Stop').length, 'Stops'], [db.list('Student').length, 'Students'],
+  ].map(([n, l]) => `<div class="quick"><div class="quick-num">${n}</div><div class="quick-label">${l}</div></div>`).join('');
+  renderTerm($('#dash-term'));
+}
+
+/* ---------------- route search ---------------- */
+function initSearch() {
+  const stops = db.list('Stop');
+  const opt = (s) => `<option value="${s.stop_id}">${esc(s.stop_name)}</option>`;
+  const f = $('#s-from').value, t = $('#s-to').value;
+  $('#s-from').innerHTML = '<option value="">Any stop</option>' + stops.map(opt).join('');
+  $('#s-to').innerHTML = '<option value="">Any stop</option>' + stops.map(opt).join('');
+  $('#s-from').value = f; $('#s-to').value = t;
+}
+function renderSearch() { initSearch(); searchRoutes(); }
+function resetSearch() { $('#s-from').value = ''; $('#s-to').value = ''; $('#s-shift').value = 'ALL'; searchRoutes(); }
+function searchRoutes() {
+  const from = +$('#s-from').value || null, to = +$('#s-to').value || null, shift = $('#s-shift').value;
+  const out = [];
+  for (const route of db.list('Route')) {
+    if (shift !== 'ALL' && route.shift !== shift) continue;
+    const v = db.routeView(route);
+    const a = from ? v.stops.find((s) => s.stop_id === from) : null;
+    const b = to ? v.stops.find((s) => s.stop_id === to) : null;
+    if (from && !a) continue;
+    if (to && !b) continue;
+    if (a && b && a.seq_no >= b.seq_no) continue;
+    out.push({ v, a, b });
+  }
+  $('#search-results').innerHTML = out.length ? out.map(({ v, a, b }) => {
+    const first = a || v.stops[0], last = b || v.stops[v.stops.length - 1];
+    const mins = toMin(last.scheduled_time) - toMin(first.scheduled_time);
+    const full = v.vacant <= 0;
+    return `<article class="route-card">
+      <header class="route-head"><span class="chip mono">R${v.route_id}</span><div class="route-name">${esc(v.route_name)}</div>${badge(v.shift)}${v.bus.status === 'SERVICE' ? badge('SERVICE') : ''}</header>
+      <div class="route-line">
+        <div class="route-end"><div class="route-time mono">${hm(first.scheduled_time)}</div><div class="route-stop">${esc(first.stop.stop_name)}</div></div>
+        <div class="route-span"><span>${mins} min</span><i></i></div>
+        <div class="route-end right"><div class="route-time mono">${hm(last.scheduled_time)}</div><div class="route-stop">${esc(last.stop.stop_name)}</div></div>
+      </div>
+      <ol class="stop-trail">${v.stops.map((s) => `<li class="${(a && s.seq_no === a.seq_no) || (b && s.seq_no === b.seq_no) ? 'hit' : ''}"><span class="mono">${s.seq_no}</span>${esc(s.stop.stop_name)}<em class="mono">${hm(s.scheduled_time)}</em></li>`).join('')}</ol>
+      <footer class="route-foot">
+        <div class="route-seats"><div class="route-seats-top"><span>${ic('bus', 14)} ${esc(v.bus.number)} · ${esc(v.bus.model)}</span><strong class="${full ? 'bad-text' : 'good-text'}">${full ? 'Route full' : v.vacant + ' seats free'}</strong></div>${meter(v.pct)}<div class="route-crew">Driver ${esc(v.driver.name)} · Attendant ${esc(v.attendant.name)}</div></div>
+        <button class="btn btn-primary" onclick="quickRegister(${v.route_id},${(a || v.stops[0]).stop_id})">${ic('userplus')} Register here</button>
+      </footer></article>`;
+  }).join('') : empty('No route matches', 'Try a different stop or shift. A route must visit the origin before the destination.');
+}
+function quickRegister(routeId, stopId) {
+  navigate('register');
+  $('#r-route').value = routeId; fillStops(); $('#r-stop').value = stopId; regPreview();
+}
+
+/* ---------------- register student ---------------- */
+function renderRegister() {
+  const active = new Set(db.list('TransportRegistration').filter((r) => r.status === 'ACTIVE').map((r) => r.student_id));
+  $('#r-student').innerHTML = db.list('Student').map((s) => `<option value="${s.student_id}">${esc(s.name)} · ${esc(s.class)}-${esc(s.section)}${active.has(s.student_id) ? ' · already ACTIVE' : ''}</option>`).join('') + '<option value="new">+ New student…</option>';
+  $('#r-route').innerHTML = db.list('Route').map((r) => `<option value="${r.route_id}">${esc(r.route_name)} · ${esc(r.shift)}</option>`).join('');
+  $('#r-plan').innerHTML = db.list('FeePlan').map((p) => `<option value="${p.plan_id}">${esc(p.term)} · ${esc(p.academic_year)} · ${fmt(p.amount)}</option>`).join('');
+  $('#r-start').value = TODAY;
+  ['r-name', 'r-class', 'r-section', 'r-guardian', 'r-pay'].forEach((id) => { $('#' + id).value = ''; });
+  newStudentToggle();
+  fillStops();
+  regPreview();
+}
+function newStudentToggle() { $('#r-new').hidden = $('#r-student').value !== 'new'; }
+function fillStops() {
+  const rid = +$('#r-route').value;
+  $('#r-stop').innerHTML = db.stopsOf(rid).map((s) => `<option value="${s.stop_id}">${s.seq_no} · ${esc(s.stop.stop_name)} · ${hm(s.scheduled_time)}</option>`).join('');
+}
+function regPreview() {
+  const plan = db.find('FeePlan', { plan_id: +$('#r-plan').value });
+  const route = db.find('Route', { route_id: +$('#r-route').value });
+  const pay = parseFloat($('#r-pay').value) || 0;
+  $('#r-fee').innerHTML = plan ? `
+    <div class="ledger-row"><span>Plan ${esc(plan.term)} (${esc(plan.academic_year)})</span><b class="mono">${fmt(plan.amount)}</b></div>
+    <div class="ledger-row"><span>Paid with registration</span><b class="mono">${fmt(pay)}</b></div>
+    <div class="ledger-row total"><span>Balance after registration</span><b class="mono ${plan.amount - pay > 0 ? 'bad-text' : 'good-text'}">${fmt(plan.amount - pay)}</b></div>` : empty('Choose a fee plan');
+  if (route) {
+    const v = db.routeView(route);
+    $('#r-seats').innerHTML = `<div class="route-seats-top"><span>${ic('bus', 14)} ${esc(v.bus.number)} · ${esc(v.bus.model)}</span>${v.vacant <= 0 ? badge('FULL') : `<strong class="good-text">${v.vacant} free</strong>`}</div>${meter(v.pct)}
+      <div class="ledger-row"><span>Active students</span><b class="mono">${v.active}</b></div>
+      <div class="ledger-row"><span>Bus capacity</span><b class="mono">${v.bus.capacity}</b></div>
+      <div class="ledger-row"><span>Driver</span><b>${esc(v.driver.name)}</b></div>
+      <div class="ledger-row"><span>Attendant</span><b>${esc(v.attendant.name)}</b></div>`;
+  }
+}
+function submitRegistration() {
+  try {
+    const out = db.tx('register student', () => {
+      let sid = $('#r-student').value;
+      if (sid === 'new') {
+        sid = db.nextId('Student');
+        db.insert('Student', { student_id: sid, name: $('#r-name').value, class: $('#r-class').value, section: $('#r-section').value, guardian_name: $('#r-guardian').value });
+      } else sid = +sid;
+      const regId = db.nextId('TransportRegistration');
+      db.insert('TransportRegistration', { reg_id: regId, student_id: sid, route_id: $('#r-route').value, stop_id: $('#r-stop').value, plan_id: $('#r-plan').value, start_date: $('#r-start').value, status: 'ACTIVE' });
+      const pay = $('#r-pay').value;
+      if (pay !== '') addPayment(regId, pay, TODAY);
+      return regId;
+    });
+    toast('Registration saved', `Registration #${out} is ACTIVE.`, 'success');
+    renderRegister(); badges();
+    showRegCard(out);
+  } catch (e) { dbFail('Registration rejected', e); }
+}
+function nextReceipt() {
+  let n = db.nextId('Payment');
+  const used = new Set(db.list('Payment').map((p) => p.receipt_no));
+  const year = TODAY.slice(0, 4);
+  while (used.has(`RCPT-${year}-${String(n).padStart(4, '0')}`)) n++;
+  return `RCPT-${year}-${String(n).padStart(4, '0')}`;
+}
+function addPayment(regId, amount, date) {
+  return db.insert('Payment', { payment_id: db.nextId('Payment'), reg_id: regId, paid_on: date, amount, receipt_no: nextReceipt() });
+}
+function showRegCard(regId) {
+  const r = db.regView(db.find('TransportRegistration', { reg_id: regId }));
+  const f = (l, v) => `<div class="card-field"><div class="card-field-l">${l}</div><div class="card-field-v">${esc(v)}</div></div>`;
+  openModal('Transport registration', `<div class="reg-card">
+    <div class="reg-card-top"><div><div class="card-field-l">Registration</div><div class="reg-code mono">REG-${String(r.reg_id).padStart(4, '0')}</div></div>${badge(r.status)}</div>
+    <div class="reg-grid">${f('Student', r.student.name)}${f('Class', r.student.class + '-' + r.student.section)}${f('Guardian', r.student.guardian_name)}${f('Start date', r.start_date)}
+    ${f('Route', r.route.route_name)}${f('Shift', r.route.shift)}${f('Pickup stop', r.stop.stop_name)}${f('Pickup time', hm(r.seq.scheduled_time))}
+    ${f('Bus', r.bus.number)}${f('Fee plan', r.plan.term + ' · ' + fmt(r.plan.amount))}${f('Paid', fmt(r.paid))}${f('Balance due', fmt(r.due))}</div></div>`);
+}
+
+/* ---------------- registrations list ---------------- */
+function renderRegistrations() {
+  $('#f-status').value = ui.regFilter;
+  if (document.activeElement !== $('#f-query')) $('#f-query').value = ui.regQuery;
+  const q = ui.regQuery.trim().toLowerCase();
+  const rows = db.list('TransportRegistration').map((r) => db.regView(r)).filter((r) =>
+    (ui.regFilter === 'ALL' || r.status === ui.regFilter) &&
+    (!q || `${r.student.name} ${r.route.route_name} ${r.stop.stop_name}`.toLowerCase().includes(q)));
+  $('#reg-table').innerHTML = table([
+    { h: 'Reg', html: (r) => `<span class="mono accent-text">#${r.reg_id}</span>` },
+    { h: 'Student', html: (r) => `<b>${esc(r.student.name)}</b><div class="sub">${esc(r.student.class)}-${esc(r.student.section)}</div>` },
+    { h: 'Route', f: (r) => r.route.route_name },
+    { h: 'Stop', html: (r) => `${esc(r.stop.stop_name)}<div class="sub mono">${hm(r.seq.scheduled_time)}</div>` },
+    { h: 'Plan', f: (r) => r.plan.term },
+    { h: 'Paid / due', html: (r) => `<span class="mono">${fmt(r.paid)}</span><div class="sub mono ${r.due > 0 ? 'bad-text' : 'good-text'}">${r.due > 0 ? fmt(r.due) + ' due' : 'settled'}</div>` },
+    { h: 'Status', html: (r) => badge(r.status) },
+    { h: '', cls: 'actions', html: (r) => `<button class="btn btn-sm" onclick="showRegCard(${r.reg_id})">View</button>` +
+      (r.status === 'ACTIVE' ? `<button class="btn btn-sm btn-danger" onclick="startDeregister(${r.reg_id})">Deactivate</button>` : `<button class="btn btn-sm btn-good" onclick="reactivate(${r.reg_id})">Reactivate</button>`) },
+  ], rows, { emptyTitle: 'No registrations match', emptySub: 'Change the status filter or search text.' });
+}
+function reactivate(regId) {
+  try { db.tx('reactivate registration', () => db.update('TransportRegistration', { reg_id: regId }, { status: 'ACTIVE' })); toast('Registration reactivated', `#${regId} is ACTIVE again.`, 'success'); refresh(); }
+  catch (e) { dbFail('Reactivation rejected', e); }
+}
+
+/* ---------------- pickup tracker ---------------- */
+function renderTracker() {
+  if (!ui.trackDate) ui.trackDate = latestTripDate();
+  $('#t-route').innerHTML = db.list('Route').map((r) => `<option value="${r.route_id}">${esc(r.route_name)}</option>`).join('');
+  $('#t-route').value = ui.trackRoute; $('#t-date').value = ui.trackDate;
+  const route = db.find('Route', { route_id: ui.trackRoute });
+  const v = db.routeView(route);
+  if (!v.stops.length) {
+    $('#t-list').innerHTML = empty('This route has no stops yet', 'Add stops under CRUD Manager, Route stops.');
+    $('#t-stats').innerHTML = ''; renderTerm($('#t-term')); return;
+  }
+  const school = v.stops[v.stops.length - 1];
+  const riders = db.list('TransportRegistration').filter((r) => r.route_id === route.route_id && r.status === 'ACTIVE')
+    .map((r) => db.regView(r)).sort((a, b) => a.seq.seq_no - b.seq.seq_no || a.reg_id - b.reg_id);
+  const ev = (regId, type) => db.list('PickupLog').find((l) => l.reg_id === regId && l.trip_date === ui.trackDate && l.event_type === type);
+  const picked = riders.filter((r) => ev(r.reg_id, 'PICKUP')).length;
+  const dropped = riders.filter((r) => ev(r.reg_id, 'DROP')).length;
+  $('#t-list').innerHTML = riders.length ? riders.map((r) => {
+    const pu = ev(r.reg_id, 'PICKUP'), dr = ev(r.reg_id, 'DROP');
+    const state = dr ? badge('DROPPED') : pu ? badge('BOARDED') : badge('ABSENT');
+    return `<div class="rider">
+      <div class="rider-seq mono">${r.seq.seq_no}</div>
+      <div class="rider-info"><div class="rider-name">${esc(r.student.name)} <span class="sub">${esc(r.student.class)}-${esc(r.student.section)}</span></div>
+        <div class="rider-detail">${esc(r.stop.stop_name)} · due ${hm(r.seq.scheduled_time)}${pu ? ` · picked up ${hm(pu.event_time)}` : ''}${dr ? ` · dropped ${hm(dr.event_time)}` : ''}</div></div>
+      ${state}
+      <div class="rider-actions">
+        <label class="sr-only" for="pt-${r.reg_id}">Pickup time for ${esc(r.student.name)}</label><input class="input input-sm mono" id="pt-${r.reg_id}" type="time" value="${hm(pu ? pu.event_time : r.seq.scheduled_time)}">
+        <button class="btn btn-sm btn-good" onclick="logEvent(${r.reg_id},'PICKUP')">Pick up</button>
+        <button class="btn btn-sm" onclick="logEvent(${r.reg_id},'DROP')">Drop ${hm(school.scheduled_time)}</button>
+      </div></div>`;
+  }).join('') : empty('No active riders on this route', 'Register a student to see them here.');
+  const rate = riders.length ? Math.round((100 * picked) / riders.length) : 0;
+  $('#t-stats').innerHTML = `
+    <div class="ledger-row"><span>Active riders</span><b class="mono">${riders.length}</b></div>
+    <div class="ledger-row"><span>Picked up</span><b class="mono good-text">${picked}</b></div>
+    <div class="ledger-row"><span>Dropped at ${esc(school.stop.stop_name)}</span><b class="mono accent-text">${dropped}</b></div>
+    <div class="ledger-row"><span>Absent</span><b class="mono bad-text">${riders.length - picked}</b></div>
+    <div class="ledger-row total"><span>Attendance</span><b class="mono">${rate}%</b></div>${meter(rate, rate >= 80 ? 'good' : rate >= 50 ? 'warn' : 'bad')}`;
+  renderTerm($('#t-term'));
+}
+function trackerChange() { ui.trackRoute = +$('#t-route').value; ui.trackDate = $('#t-date').value || latestTripDate(); renderTracker(); badges(); }
+function logEvent(regId, type) {
+  const reg = db.regView(db.find('TransportRegistration', { reg_id: regId }));
+  const route = db.stopsOf(reg.route_id);
+  const input = $('#pt-' + regId);
+  const time = type === 'DROP' ? hm(route[route.length - 1].scheduled_time) : input && input.value;
+  try {
+    db.tx(`log ${type.toLowerCase()}`, () => db.insert('PickupLog', { log_id: db.nextId('PickupLog'), reg_id: regId, trip_date: ui.trackDate, event_type: type, event_time: time }));
+    toast(type === 'PICKUP' ? 'Pickup logged' : 'Drop logged', `${reg.student.name} at ${time}.`, 'success');
+    refresh();
+  } catch (e) { dbFail('Event rejected', e); }
+}
+function runTrip(type) {
+  const stops = db.stopsOf(ui.trackRoute);
+  if (!stops.length) return toast('No stops on this route', 'Add stops first.', 'warn');
+  const schoolTime = stops[stops.length - 1].scheduled_time;
+  let n = 0;
+  try {
+    db.tx(type === 'PICKUP' ? 'run morning pickups' : 'log school drops', () => {
+      const riders = db.list('TransportRegistration').filter((r) => r.route_id === ui.trackRoute && r.status === 'ACTIVE');
+      for (const r of riders) {
+        const has = (t) => db.list('PickupLog').find((l) => l.reg_id === r.reg_id && l.trip_date === ui.trackDate && l.event_type === t);
+        if (has(type)) continue;
+        if (type === 'DROP' && !has('PICKUP')) continue;
+        const seq = db.find('RouteSequence', { route_id: r.route_id, stop_id: r.stop_id });
+        const time = type === 'PICKUP' ? seq.scheduled_time : schoolTime;
+        db.insert('PickupLog', { log_id: db.nextId('PickupLog'), reg_id: r.reg_id, trip_date: ui.trackDate, event_type: type, event_time: time });
+        n++;
+      }
+    });
+    toast(type === 'PICKUP' ? 'Morning trip logged' : 'Drops logged', n ? `${n} ${type === 'PICKUP' ? 'pickups' : 'drops'} recorded.` : 'Nothing left to log for this date.', n ? 'success' : 'info');
+    refresh();
+  } catch (e) { dbFail('Trip rejected', e); }
+}
+function triggerDemo(kind) {
+  try {
+    db.tx('trigger demo', () => {
+      if (kind === 'inactive') db.insert('PickupLog', { log_id: db.nextId('PickupLog'), reg_id: 7, trip_date: ui.trackDate, event_type: 'PICKUP', event_time: '07:00' });
+      else {
+        const target = db.list('TransportRegistration').find((r) => r.status === 'ACTIVE' && !db.list('PickupLog').some((l) => l.reg_id === r.reg_id && l.trip_date === ui.trackDate && l.event_type === 'PICKUP'));
+        if (!target) throw new Error('Every active rider already has a pickup on this date. Pick another date.');
+        db.insert('PickupLog', { log_id: db.nextId('PickupLog'), reg_id: target.reg_id, trip_date: ui.trackDate, event_type: 'DROP', event_time: '07:30' });
+      }
+    });
+  } catch (e) { dbFail('Trigger blocked the insert', e); }
+}
+
+/* ---------------- deactivate registration ---------------- */
+function startDeregister(regId) { ui.deReg = regId; navigate('deregister'); }
+function renderDeregister() {
+  const act = db.list('TransportRegistration').filter((r) => r.status === 'ACTIVE').map((r) => db.regView(r));
+  $('#d-reg').innerHTML = act.length ? act.map((r) => `<option value="${r.reg_id}">#${r.reg_id} · ${esc(r.student.name)} · ${esc(r.route.route_name)}</option>`).join('') : '<option value="">No active registrations</option>';
+  if (!act.some((r) => r.reg_id === ui.deReg)) ui.deReg = act[0] ? act[0].reg_id : null;
+  $('#d-reg').value = ui.deReg ?? '';
+  const r = ui.deReg ? db.regView(db.find('TransportRegistration', { reg_id: ui.deReg })) : null;
+  $('#d-preview').innerHTML = r ? `
+    <div class="ledger-row"><span>Student</span><b>${esc(r.student.name)} · ${esc(r.student.class)}-${esc(r.student.section)}</b></div>
+    <div class="ledger-row"><span>Route and stop</span><b>${esc(r.route.route_name)} · ${esc(r.stop.stop_name)}</b></div>
+    <div class="ledger-row"><span>Fee plan</span><b class="mono">${esc(r.plan.term)} · ${fmt(r.plan.amount)}</b></div>
+    <div class="ledger-row"><span>Paid so far</span><b class="mono">${fmt(r.paid)}</b></div>
+    <div class="ledger-row total"><span>Balance still owed</span><b class="mono ${r.due > 0 ? 'bad-text' : 'good-text'}">${fmt(r.due)}</b></div>` : empty('Nothing to deactivate', 'There are no ACTIVE registrations.');
+  $('#d-btn').disabled = !r;
+  const inactive = db.list('TransportRegistration').filter((x) => x.status === 'INACTIVE').map((x) => db.regView(x));
+  $('#d-inactive').innerHTML = table([
+    { h: 'Reg', html: (x) => `<span class="mono accent-text">#${x.reg_id}</span>` }, { h: 'Student', f: (x) => x.student.name },
+    { h: 'Route', f: (x) => x.route.route_name }, { h: 'Since', f: (x) => x.start_date },
+  ], inactive, { emptyTitle: 'No inactive registrations' });
+  renderTerm($('#d-term'));
+}
+function deregister() {
+  if (!ui.deReg) return;
+  try {
+    db.tx('deactivate registration', () => db.update('TransportRegistration', { reg_id: ui.deReg }, { status: 'INACTIVE' }));
+    toast('Registration deactivated', `#${ui.deReg} is INACTIVE. The row and its payments stay on record.`, 'success');
+    ui.deReg = null; refresh();
+  } catch (e) { dbFail('Deactivation rejected', e); }
+}
+
+/* ---------------- fees and payments ---------------- */
+function renderFees() {
+  const dues = db.feeDues();
+  $('#fee-reg').innerHTML = dues.map((r) => `<option value="${r.reg_id}">#${r.reg_id} · ${esc(r.student.name)}</option>`).join('');
+  if (!dues.some((r) => r.reg_id === ui.feeReg)) ui.feeReg = dues[0] ? dues[0].reg_id : null;
+  $('#fee-reg').value = ui.feeReg ?? '';
+  feeLedger();
+  $('#fee-dues').innerHTML = table([
+    { h: 'Student', html: (r) => `<b>${esc(r.student.name)}</b><div class="sub">${esc(r.route.route_name)}</div>` },
+    { h: 'Plan', f: (r) => r.plan.term },
+    { h: 'Plan amount', num: true, f: (r) => fmt(r.plan.amount) },
+    { h: 'Paid', num: true, f: (r) => fmt(r.paid) },
+    { h: 'Balance', num: true, html: (r) => `<span class="mono ${r.due > 0 ? 'bad-text' : 'good-text'}">${fmt(r.due)}</span>` },
+    { h: 'State', html: (r) => badge(r.due <= 0 ? 'PAID' : r.paid > 0 ? 'PART' : 'UNPAID') },
+    { h: '', cls: 'actions', html: (r) => `<button class="btn btn-sm" onclick="pickFee(${r.reg_id})">Open</button>` },
+  ], dues.slice().sort((a, b) => b.due - a.due), { emptyTitle: 'No active registrations' });
+}
+function pickFee(id) { ui.feeReg = id; renderFees(); $('#fee-ledger').scrollIntoView({ block: 'center' }); }
+function feeLedger() {
+  ui.feeReg = +$('#fee-reg').value || null;
+  const r = ui.feeReg ? db.regView(db.find('TransportRegistration', { reg_id: ui.feeReg })) : null;
+  if (!r) { $('#fee-ledger').innerHTML = empty('No registration selected'); $('#fee-history').innerHTML = ''; return; }
+  const pct = Math.min(100, (100 * r.paid) / r.plan.amount);
+  $('#fee-ledger').innerHTML = `
+    <div class="ledger-row"><span>${esc(r.student.name)} · ${esc(r.plan.term)} (${esc(r.plan.academic_year)})</span><b class="mono">${fmt(r.plan.amount)}</b></div>
+    <div class="ledger-row"><span>Total paid</span><b class="mono good-text">${fmt(r.paid)}</b></div>
+    <div class="ledger-row total"><span>Balance due</span><b class="mono ${r.due > 0 ? 'bad-text' : 'good-text'}">${fmt(r.due)}</b></div>${meter(pct, 'good')}`;
+  $('#fee-amount').value = r.due > 0 ? r.due : '';
+  $('#fee-date').value = TODAY;
+  $('#fee-receipt').textContent = nextReceipt();
+  feeSplit();
+  const pays = db.list('Payment').filter((p) => p.reg_id === r.reg_id);
+  $('#fee-history').innerHTML = table([
+    { h: 'Receipt', html: (p) => `<span class="mono">${esc(p.receipt_no)}</span>` }, { h: 'Date', f: (p) => p.paid_on }, { h: 'Amount', num: true, f: (p) => fmt(p.amount) },
+  ], pays, { emptyTitle: 'No payments yet', emptySub: 'Record the first payment with the form.' });
+}
+function feeSplit() {
+  const r = ui.feeReg ? db.regView(db.find('TransportRegistration', { reg_id: ui.feeReg })) : null;
+  const n = +$('#fee-split').value || 1;
+  if (!r || r.due <= 0) { $('#fee-split-out').textContent = 'Nothing left to split.'; return; }
+  const base = Math.floor((r.due * 100) / n) / 100;
+  const last = Math.round((r.due - base * (n - 1)) * 100) / 100;
+  $('#fee-split-out').textContent = n === 1 ? `Pay ${fmt(r.due)} once.` : `${n - 1} × ${fmt(base)} then ${fmt(last)}.`;
+}
+function recordPayment() {
+  if (!ui.feeReg) return;
+  try {
+    const p = db.tx('record payment', () => addPayment(ui.feeReg, $('#fee-amount').value, $('#fee-date').value));
+    toast('Payment recorded', `${p.receipt_no} for ${fmt(p.amount)}.`, 'success');
+    refresh();
+  } catch (e) { dbFail('Payment rejected', e); }
+}
+
+/* ---------------- CRUD manager ---------------- */
+const crudRef = (ref, label) => ({ ref, label });
+const CRUD = {
+  Bus: { label: 'Buses', fields: { status: { opts: ['ACTIVE', 'SERVICE'] }, capacity: { hint: 'CHECK 1 to 60 seats' } } },
+  Driver: { label: 'Drivers', fields: { license_no: { hint: 'Two capital letters then 13 digits, e.g. CG0420180012345' } } },
+  Attendant: { label: 'Attendants', fields: {} },
+  Route: { label: 'Routes', fields: { bus_id: crudRef('Bus', (b) => b.number), driver_id: crudRef('Driver', (d) => d.name), attendant_id: crudRef('Attendant', (a) => a.name), shift: { opts: ['MORNING', 'AFTERNOON'] } } },
+  Stop: { label: 'Stops', fields: { latitude: { hint: 'CHECK -90 to 90' }, longitude: { hint: 'CHECK -180 to 180' } } },
+  RouteSequence: { label: 'Route stops', composite: true, fields: { route_id: crudRef('Route', (r) => r.route_name), stop_id: crudRef('Stop', (s) => s.stop_name), seq_no: { hint: 'Positive, unique within a route' } } },
+  Student: { label: 'Students', fields: {} },
+  FeePlan: { label: 'Fee plans', fields: { amount: { hint: 'CHECK greater than 0' } } },
+  MaintenanceRecord: { label: 'Maintenance', fields: { bus_id: crudRef('Bus', (b) => b.number), cost: { hint: 'CHECK 0 or more' } } },
+};
+function renderCrud() {
+  $('#crud-tabs').innerHTML = Object.keys(CRUD).map((k) => `<button class="tab ${k === ui.crudTab ? 'active' : ''}" onclick="switchCrud('${k}')">${CRUD[k].label}</button>`).join('');
+  const sch = SCHEMA[ui.crudTab];
+  const rows = db.list(ui.crudTab);
+  const cols = sch.cols.map((c) => ({ h: c.n, cls: c.t === 'text' ? '' : 'mono', num: c.t === 'int' || c.t === 'num', f: (r) => (c.t === 'time' ? hm(r[c.n]) : r[c.n]) }));
+  cols.push({ h: '', cls: 'actions', html: (r) => {
+    const key = sch.pk.map((k) => r[k]).join('-');
+    return `<button class="btn btn-sm" onclick="crudForm('${ui.crudTab}','${key}')">${ic('pencil', 13)} Edit</button><button class="btn btn-sm btn-danger" id="del-${key}" onclick="crudDelete('${ui.crudTab}','${key}',this)">${ic('trash', 13)} Delete</button>`;
+  } });
+  $('#crud-title').textContent = `${CRUD[ui.crudTab].label} · ${rows.length} rows`;
+  $('#crud-table').innerHTML = table(cols, rows, { emptyTitle: 'No rows yet', emptySub: 'Use Add record to insert one.' });
+}
+function switchCrud(k) { ui.crudTab = k; renderCrud(); }
+const rowByKey = (table, key) => {
+  const sch = SCHEMA[table]; const parts = String(key).split('-');
+  const where = {}; sch.pk.forEach((k, i) => { where[k] = +parts[i]; });
+  return db.find(table, where);
+};
+function crudForm(table, key) {
+  const sch = SCHEMA[table], cfg = CRUD[table];
+  const row = key ? rowByKey(table, key) : null;
+  const fieldHtml = sch.cols.map((c) => {
+    const f = cfg.fields[c.n] || {};
+    const isPk = sch.pk.includes(c.n);
+    let val = row ? row[c.n] : (isPk && !cfg.composite ? db.nextId(table) : '');
+    if (c.t === 'time' && val) val = hm(val);
+    const lock = row && isPk ? 'disabled' : '';
+    let control;
+    if (f.opts) control = `<select class="input" id="cf-${c.n}" ${lock}>${f.opts.map((o) => `<option ${o === val ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+    else if (f.ref) control = `<select class="input" id="cf-${c.n}" ${lock}>${db.list(f.ref).map((o) => { const id = o[SCHEMA[f.ref].pk[0]]; return `<option value="${id}" ${id === val ? 'selected' : ''}>${esc(f.label(o))}</option>`; }).join('')}</select>`;
+    else {
+      const type = c.t === 'date' ? 'date' : c.t === 'time' ? 'time' : c.t === 'int' || c.t === 'num' ? 'number' : 'text';
+      control = `<input class="input" id="cf-${c.n}" type="${type}" ${c.t === 'num' ? 'step="any"' : ''} value="${esc(val)}" ${lock}>`;
+    }
+    return `<div class="field"><label class="label" for="cf-${c.n}">${c.n}</label>${control}${f.hint ? `<div class="hint">${esc(f.hint)}</div>` : ''}</div>`;
+  }).join('');
+  openModal(row ? `Edit ${CRUD[table].label.toLowerCase()} record` : `Add ${CRUD[table].label.toLowerCase()} record`,
+    `<form onsubmit="event.preventDefault();crudSave('${table}','${key || ''}')"><div class="form-grid">${fieldHtml}</div>
+     <div id="crud-error" class="form-error" hidden></div>
+     <div class="modal-actions"><button type="button" class="btn" onclick="closeModal()">Cancel</button><button type="submit" class="btn btn-primary">${row ? 'Save changes' : 'Insert row'}</button></div></form>`);
+}
+function crudSave(table, key) {
+  const sch = SCHEMA[table];
+  const vals = {}; sch.cols.forEach((c) => { vals[c.n] = $('#cf-' + c.n).value; });
+  try {
+    if (key) {
+      const cur = rowByKey(table, key);
+      const patch = {};
+      sch.cols.forEach((c) => { if (!sch.pk.includes(c.n) && String(cur[c.n]) !== vals[c.n] && !(c.t === 'time' && hm(cur[c.n]) === vals[c.n])) patch[c.n] = vals[c.n]; });
+      const where = {}; sch.pk.forEach((k) => { where[k] = cur[k]; });
+      if (Object.keys(patch).length) db.tx('update row', () => db.update(table, where, patch));
+    } else db.tx('insert row', () => db.insert(table, vals));
+    closeModal(); toast(key ? 'Row updated' : 'Row inserted', `${table} saved.`, 'success'); refresh();
+  } catch (e) {
+    const box = $('#crud-error');
+    if (box && e instanceof DbError) { box.hidden = false; box.innerHTML = `<b>${esc(e.message)}</b>${e.detail ? `<div>${esc(e.detail)}</div>` : ''}<div class="mono">SQLSTATE ${esc(e.code)}${e.constraint ? ' · ' + esc(e.constraint) : ''}</div>`; }
+    else dbFail('Save failed', e);
+  }
+}
+function crudDelete(table, key, btn) {
+  if (btn.dataset.armed !== '1') {
+    btn.dataset.armed = '1'; btn.textContent = 'Confirm delete?';
+    setTimeout(() => { if (btn.isConnected) { btn.dataset.armed = ''; btn.innerHTML = `${ic('trash', 13)} Delete`; } }, 3000);
+    return;
+  }
+  const row = rowByKey(table, key); const where = {}; SCHEMA[table].pk.forEach((k) => { where[k] = row[k]; });
+  try { db.tx('delete row', () => db.remove(table, where)); toast('Row deleted', `${table} row removed.`, 'success'); refresh(); }
+  catch (e) { dbFail('Delete blocked', e); }
+}
+
+/* ---------------- analytics and reports ---------------- */
+const REPORTS = [
+  { name: 'Route lists', note: 'Multi-table JOIN, ORDER BY',
+    sql: () => `SELECT r.route_id, r.route_name, rs.seq_no, s.stop_name, rs.scheduled_time
+FROM Route r
+JOIN RouteSequence rs ON rs.route_id = r.route_id
+JOIN Stop s ON s.stop_id = rs.stop_id
+ORDER BY r.route_id, rs.seq_no;`,
+    run: () => ({
+      cols: [{ h: 'route_id', k: 'route_id' }, { h: 'route_name', k: 'route_name' }, { h: 'seq_no', k: 'seq_no' }, { h: 'stop_name', k: 'stop_name' }, { h: 'scheduled_time', f: (r) => hm(r.scheduled_time) }],
+      rows: db.list('Route').slice().sort((a, b) => a.route_id - b.route_id).flatMap((r) => db.stopsOf(r.route_id).map((s) => ({ route_id: r.route_id, route_name: r.route_name, seq_no: s.seq_no, stop_name: s.stop.stop_name, scheduled_time: s.scheduled_time }))),
+    }) },
+  { name: 'Capacity utilization', note: 'LEFT JOIN, GROUP BY, COUNT, ROUND',
+    sql: () => `SELECT r.route_id, r.route_name, b.number AS bus_number, b.capacity AS total_seats,
+       COUNT(tr.reg_id) AS active_students,
+       b.capacity - COUNT(tr.reg_id) AS vacant_seats,
+       ROUND(100.0 * COUNT(tr.reg_id) / b.capacity, 2) AS utilization_pct
+FROM Route r
+JOIN Bus b ON b.bus_id = r.bus_id
+LEFT JOIN TransportRegistration tr
+       ON tr.route_id = r.route_id AND tr.status = 'ACTIVE'
+GROUP BY r.route_id, r.route_name, b.number, b.capacity
+ORDER BY r.route_id;`,
+    run: () => ({
+      cols: [{ h: 'route_id', k: 'route_id' }, { h: 'route_name', k: 'route_name' }, { h: 'bus_number', k: 'bus' }, { h: 'total_seats', k: 'cap', num: true }, { h: 'active_students', k: 'active', num: true }, { h: 'vacant_seats', k: 'vacant', num: true }, { h: 'utilization_pct', f: (r) => r.pct.toFixed(2), num: true }],
+      rows: db.list('Route').slice().sort((a, b) => a.route_id - b.route_id).map((r) => { const v = db.routeView(r); return { route_id: r.route_id, route_name: r.route_name, bus: v.bus.number, cap: v.bus.capacity, active: v.active, vacant: v.vacant, pct: v.pct }; }),
+    }) },
+  { name: 'Absent students', note: 'NOT EXISTS correlated subquery', date: true,
+    sql: (d) => `SELECT tr.reg_id, s.name AS student_name, s.class, s.section, s.guardian_name,
+       r.route_name, st.stop_name AS home_stop
+FROM TransportRegistration tr
+JOIN Student s ON s.student_id = tr.student_id
+JOIN Route r ON r.route_id = tr.route_id
+JOIN Stop st ON st.stop_id = tr.stop_id
+WHERE tr.status = 'ACTIVE'
+  AND NOT EXISTS (
+        SELECT 1 FROM PickupLog pl
+        WHERE pl.reg_id = tr.reg_id
+          AND pl.trip_date = DATE '${d}'
+          AND pl.event_type = 'PICKUP')
+ORDER BY r.route_id, s.name;`,
+    run: (d) => ({
+      cols: [{ h: 'reg_id', k: 'reg_id' }, { h: 'student_name', f: (r) => r.student.name }, { h: 'class', f: (r) => r.student.class }, { h: 'section', f: (r) => r.student.section }, { h: 'guardian_name', f: (r) => r.student.guardian_name }, { h: 'route_name', f: (r) => r.route.route_name }, { h: 'home_stop', f: (r) => r.stop.stop_name }],
+      rows: db.absentOn(d).sort((a, b) => a.route_id - b.route_id || a.student.name.localeCompare(b.student.name)),
+    }) },
+  { name: 'Fee dues', note: 'CREATE VIEW, SUM, COALESCE, LEFT JOIN',
+    sql: () => `CREATE OR REPLACE VIEW vw_FeeDues AS
+SELECT tr.reg_id, s.student_id, s.name AS student_name, s.class, s.section,
+       r.route_name, fp.term, fp.academic_year, fp.amount AS plan_amount,
+       COALESCE(paid.total_paid, 0) AS total_paid,
+       fp.amount - COALESCE(paid.total_paid, 0) AS balance_due
+FROM TransportRegistration tr
+JOIN Student s ON s.student_id = tr.student_id
+JOIN Route r ON r.route_id = tr.route_id
+JOIN FeePlan fp ON fp.plan_id = tr.plan_id
+LEFT JOIN (SELECT reg_id, SUM(amount) AS total_paid FROM Payment GROUP BY reg_id) paid
+       ON paid.reg_id = tr.reg_id
+WHERE tr.status = 'ACTIVE';
+
+SELECT * FROM vw_FeeDues WHERE balance_due > 0
+ORDER BY balance_due DESC, student_name;`,
+    run: () => ({
+      cols: [{ h: 'reg_id', k: 'reg_id' }, { h: 'student_name', f: (r) => r.student.name }, { h: 'class', f: (r) => r.student.class }, { h: 'route_name', f: (r) => r.route.route_name }, { h: 'term', f: (r) => r.plan.term }, { h: 'plan_amount', f: (r) => r.plan.amount.toFixed(2), num: true }, { h: 'total_paid', f: (r) => r.paid.toFixed(2), num: true }, { h: 'balance_due', f: (r) => r.due.toFixed(2), num: true }],
+      rows: db.feeDues().filter((r) => r.due > 0).sort((a, b) => b.due - a.due || a.student.name.localeCompare(b.student.name)),
+    }) },
+  { name: 'Driver assignments', note: 'Four-table JOIN',
+    sql: () => `SELECT r.route_id, r.route_name, r.shift, b.number AS bus_number,
+       d.name AS driver_name, d.phone AS driver_phone,
+       a.name AS attendant_name, a.phone AS attendant_phone
+FROM Route r
+JOIN Bus b ON b.bus_id = r.bus_id
+JOIN Driver d ON d.driver_id = r.driver_id
+JOIN Attendant a ON a.attendant_id = r.attendant_id
+ORDER BY r.route_id;`,
+    run: () => ({
+      cols: [{ h: 'route_id', k: 'route_id' }, { h: 'route_name', k: 'route_name' }, { h: 'shift', k: 'shift' }, { h: 'bus_number', f: (r) => r.bus.number }, { h: 'driver_name', f: (r) => r.driver.name }, { h: 'driver_phone', f: (r) => r.driver.phone }, { h: 'attendant_name', f: (r) => r.attendant.name }, { h: 'attendant_phone', f: (r) => r.attendant.phone }],
+      rows: db.list('Route').slice().sort((a, b) => a.route_id - b.route_id).map((r) => db.routeView(r)),
+    }) },
+  { name: 'Maintenance status', note: 'JOIN, max-date subquery, CASE',
+    sql: () => `SELECT b.bus_id, b.number AS bus_number, b.status AS bus_status,
+       m.service_date AS last_service, m.description, m.cost, m.next_due,
+       CASE WHEN m.next_due < CURRENT_DATE THEN 'OVERDUE' ELSE 'UP TO DATE' END AS service_status
+FROM Bus b
+JOIN MaintenanceRecord m ON m.bus_id = b.bus_id
+WHERE m.service_date = (SELECT MAX(m2.service_date)
+                        FROM MaintenanceRecord m2 WHERE m2.bus_id = b.bus_id)
+ORDER BY m.next_due;`,
+    run: () => ({
+      cols: [{ h: 'bus_id', f: (r) => r.bus.bus_id }, { h: 'bus_number', f: (r) => r.bus.number }, { h: 'bus_status', html: (r) => badge(r.bus.status) }, { h: 'last_service', k: 'service_date' }, { h: 'description', k: 'description' }, { h: 'cost', f: (r) => r.cost.toFixed(2), num: true }, { h: 'next_due', k: 'next_due' }, { h: 'service_status', html: (r) => badge(r.next_due < TODAY ? 'OVERDUE' : 'OK') }],
+      rows: db.maintenanceStatus().sort((a, b) => a.next_due.localeCompare(b.next_due)),
+    }) },
+];
+function renderReports() {
+  if (!ui.repDate) ui.repDate = latestTripDate();
+  const dues = db.feeDues();
+  const billed = dues.reduce((s, r) => s + r.plan.amount, 0), paid = dues.reduce((s, r) => s + Math.min(r.paid, r.plan.amount), 0);
+  const active = db.list('TransportRegistration').filter((r) => r.status === 'ACTIVE');
+  const absent = db.absentOn(ui.repDate).length;
+  const seats = db.list('Route').map((r) => db.routeView(r)), cap = seats.reduce((s, r) => s + r.bus.capacity, 0);
+  const overdue = db.maintenanceStatus().filter((m) => m.next_due < TODAY).length;
+  $('#rep-metrics').innerHTML = [
+    ['Fee collection rate', billed ? Math.round((100 * paid) / billed) + '%' : '0%', 'good-text', 'Paid against plan amounts, active registrations'],
+    [`Attendance on ${ui.repDate}`, active.length ? Math.round((100 * (active.length - absent)) / active.length) + '%' : '0%', 'info-text', `${absent} of ${active.length} active riders absent`],
+    ['Seats in use', cap ? Math.round((100 * seats.reduce((s, r) => s + r.active, 0)) / cap) + '%' : '0%', 'accent-text', `Across ${seats.length} routes with a bus`],
+    ['Buses overdue for service', overdue, overdue ? 'bad-text' : 'good-text', 'Next service date has passed'],
+  ].map(([l, v, c, s]) => `<div class="stat"><div class="stat-label">${esc(l)}</div><div class="stat-value ${c}">${esc(v)}</div><div class="stat-sub">${esc(s)}</div></div>`).join('');
+
+  const maxBilled = Math.max(1, ...seats.map((r) => dues.filter((d) => d.route_id === r.route_id).reduce((s, d) => s + d.plan.amount, 0)));
+  $('#rep-bars').innerHTML = seats.map((r) => {
+    const mine = dues.filter((d) => d.route_id === r.route_id);
+    const b = mine.reduce((s, d) => s + d.plan.amount, 0), p = mine.reduce((s, d) => s + Math.min(d.paid, d.plan.amount), 0);
+    return `<div class="bar-row"><div class="bar-label">${esc(r.route_name)}</div>
+      <div class="bar-track" role="img" aria-label="${fmt(p)} collected of ${fmt(b)}"><div class="bar-billed" style="width:${(100 * b) / maxBilled}%"><div class="bar-paid" style="width:${b ? (100 * p) / b : 0}%"></div></div></div>
+      <div class="bar-val mono">${fmt(p)} / ${fmt(b)}</div></div>`;
+  }).join('') + `<div class="legend"><span><i class="sw paid"></i>Collected</span><span><i class="sw billed"></i>Still owed</span></div>`;
+
+  const all = db.list('TransportRegistration'), n = all.length || 1;
+  const split = [['ACTIVE', 'good'], ['INACTIVE', 'muted']].map(([s, t]) => [s, t, all.filter((r) => r.status === s).length]);
+  $('#rep-status').innerHTML = split.map(([s, t, c]) => `<div class="bar-row"><div class="bar-label">${s}</div><div class="bar-track"><div class="bar-solid ${t}" style="width:${(100 * c) / n}%"></div></div><div class="bar-val mono">${c} of ${all.length}</div></div>`).join('');
+
+  $('#rep-tabs').innerHTML = REPORTS.map((r, i) => `<button class="tab ${i === ui.repTab ? 'active' : ''}" onclick="ui.repTab=${i};renderReports()">${esc(r.name)}</button>`).join('');
+  const rep = REPORTS[ui.repTab];
+  $('#rep-date-wrap').hidden = !rep.date;
+  $('#rep-date').value = ui.repDate;
+  const res = rep.run(ui.repDate);
+  $('#rep-note').textContent = rep.note;
+  $('#rep-sql').textContent = rep.sql(ui.repDate);
+  $('#rep-count').textContent = `${res.rows.length} row${res.rows.length === 1 ? '' : 's'} returned`;
+  $('#rep-result').innerHTML = table(res.cols, res.rows, { emptyTitle: 'No rows returned', emptySub: 'Nothing matches the query for the current data.' });
+}
+function repDateChange() { ui.repDate = $('#rep-date').value || latestTripDate(); renderReports(); }
+
+/* ---------------- boot ---------------- */
+function resetData() {
+  db.reset(); LOG.length = 0;
+  logLine('ok', 'Sample data reset · 12 tables reloaded');
+  ui.trackDate = null; ui.deReg = null; ui.feeReg = null;
+  toast('Sample data restored', 'All tables are back to the original rows.', 'info');
+  refresh();
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('DOMContentLoaded', () => {
+  logLine('ok', 'Database ready · 12 tables · Review 2 schema');
+  logLine('trg', 'TRIGGER trg_enforce_bus_capacity · ACTIVE');
+  logLine('trg', 'TRIGGER trg_validate_pickup_log · ACTIVE');
+  logLine('info', 'Every action runs as a real INSERT, UPDATE or DELETE against the in-page data.');
+  navigate('dashboard');
+});
+
+</script>
+<script>
+/* fill static icon slots and card headers once the markup exists */
+(function () {
+  document.querySelectorAll('[data-ic]').forEach(function (el) { el.outerHTML = ic(el.dataset.ic, 16); });
+  var big = document.querySelector('[data-ic-big]'); if (big) big.innerHTML = ic('bus', 28);
+  var bm = document.getElementById('brand-mark'); if (bm) bm.innerHTML = ic('bus', 22);
+  document.querySelectorAll('[data-head]').forEach(function (el) {
+    var p = el.dataset.head.split('|');
+    el.outerHTML = cardHead(p[0], p[1], p[2], p[3]);
+  });
+})();
+</script>
